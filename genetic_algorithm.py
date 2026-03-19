@@ -14,43 +14,41 @@ default_problems = {
 
 def generate_random_population(cities_location: List[Tuple[float, float]], population_size: int) -> List[List[Tuple[float, float]]]:
     """
-    Generate a random population of routes for a given set of cities.
+    Gera uma população aleatória de rotas para um conjunto de cidades.
 
-    Parameters:
-    - cities_location (List[Tuple[float, float]]): A list of tuples representing the locations of cities,
-      where each tuple contains the latitude and longitude.
-    - population_size (int): The size of the population, i.e., the number of routes to generate.
+    Parâmetros:
+    - cities_location (List[Tuple[float, float]]): Lista de coordenadas das cidades.
+    - population_size (int): Tamanho da população.
 
-    Returns:
-    List[List[Tuple[float, float]]]: A list of routes, where each route is represented as a list of city locations.
+    Retorna:
+    List[List[Tuple[float, float]]]: Lista de rotas, cada rota é uma lista de coordenadas de cidades.
     """
     return [random.sample(cities_location, len(cities_location)) for _ in range(population_size)]
 
 
 def calculate_distance(point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
     """
-    Calculate the Euclidean distance between two points.
+    Calcula a distância Euclidiana entre dois pontos.
 
-    Parameters:
-    - point1 (Tuple[float, float]): The coordinates of the first point.
-    - point2 (Tuple[float, float]): The coordinates of the second point.
+    Parâmetros:
+    - point1 (Tuple[float, float]): Coordenadas do primeiro ponto.
+    - point2 (Tuple[float, float]): Coordenadas do segundo ponto.
 
-    Returns:
-    float: The Euclidean distance between the two points.
+    Retorna:
+    float: Distância Euclidiana entre os pontos.
     """
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
 def calculate_fitness(path: List[Tuple[float, float]]) -> float:
     """
-    Calculate the fitness of a given path based on the total Euclidean distance.
+    Calcula a aptidão de um caminho com base na distância Euclidiana total.
 
-    Parameters:
-    - path (List[Tuple[float, float]]): A list of tuples representing the path,
-      where each tuple contains the coordinates of a point.
+    Parâmetros:
+    - path (List[Tuple[float, float]]): Lista de coordenadas do caminho.
 
-    Returns:
-    float: The total Euclidean distance of the path.
+    Retorna:
+    float: Distância total do caminho.
     """
     distance = 0
     n = len(path)
@@ -62,25 +60,25 @@ def calculate_fitness(path: List[Tuple[float, float]]) -> float:
 
 def order_crossover(parent1: List[Tuple[float, float]], parent2: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
     """
-    Perform order crossover (OX) between two parent sequences to create a child sequence.
+    Realiza crossover de ordem (OX) entre duas sequências de pais para gerar um filho.
 
-    Parameters:
-    - parent1 (List[Tuple[float, float]]): The first parent sequence.
-    - parent2 (List[Tuple[float, float]]): The second parent sequence.
+    Parâmetros:
+    - parent1 (List[Tuple[float, float]]): Primeiro pai.
+    - parent2 (List[Tuple[float, float]]): Segundo pai.
 
-    Returns:
-    List[Tuple[float, float]]: The child sequence resulting from the order crossover.
+    Retorna:
+    List[Tuple[float, float]]: Filho gerado pelo crossover.
     """
     length = len(parent1)
 
-    # Choose two random indices for the crossover
+    # Escolhe dois índices aleatórios para o crossover
     start_index = random.randint(0, length - 1)
     end_index = random.randint(start_index + 1, length)
 
-    # Initialize the child with a copy of the substring from parent1
+    # Inicializa o filho com uma cópia do segmento de parent1
     child = parent1[start_index:end_index]
 
-    # Fill in the remaining positions with genes from parent2
+    # Preenche as posições restantes com genes de parent2
     remaining_positions = [i for i in range(length) if i < start_index or i >= end_index]
     remaining_genes = [gene for gene in parent2 if gene not in child]
 
@@ -116,31 +114,31 @@ def order_crossover(parent1: List[Tuple[float, float]], parent2: List[Tuple[floa
 
 
 
-# TODO: implement a mutation_intensity and invert pieces of code instead of just swamping two. 
+# TODO: implementar intensidade de mutação e inverter segmentos em vez de apenas trocar dois vizinhos.
 def mutate(solution:  List[Tuple[float, float]], mutation_probability: float) ->  List[Tuple[float, float]]:
     """
-    Mutate a solution by inverting a segment of the sequence with a given mutation probability.
+    Mutação de uma solução invertendo um segmento da sequência com probabilidade definida.
 
-    Parameters:
-    - solution (List[int]): The solution sequence to be mutated.
-    - mutation_probability (float): The probability of mutation for each individual in the solution.
+    Parâmetros:
+    - solution (List[int]): Sequência a ser mutada.
+    - mutation_probability (float): Probabilidade de mutação.
 
-    Returns:
-    List[int]: The mutated solution sequence.
+    Retorna:
+    List[int]: Solução mutada.
     """
     mutated_solution = copy.deepcopy(solution)
 
-    # Check if mutation should occur    
+    # Verifica se deve aplicar mutação
     if random.random() < mutation_probability:
         
-        # Ensure there are at least two cities to perform a swap
+        # Garante ao menos duas cidades para trocar
         if len(solution) < 2:
             return solution
     
-        # Select a random index (excluding the last index) for swapping
+        # Seleciona índice aleatório (excluindo o último) para troca
         index = random.randint(0, len(solution) - 2)
         
-        # Swap the cities at the selected index and the next index
+        # Troca duas cidades vizinhas
         mutated_solution[index], mutated_solution[index + 1] = solution[index + 1], solution[index]   
         
     return mutated_solution
@@ -166,13 +164,13 @@ def sort_population(population: List[List[Tuple[float, float]]], fitness: List[f
     Returns:
     Tuple[List[List[Tuple[float, float]]], List[float]]: A tuple containing the sorted population and corresponding sorted fitness values.
     """
-    # Combine lists into pairs
+    # Combina população e aptidão em pares
     combined_lists = list(zip(population, fitness))
 
-    # Sort based on the values of the fitness list
+    # Ordena pelo valor de aptidão
     sorted_combined_lists = sorted(combined_lists, key=lambda x: x[1])
 
-    # Separate the sorted pairs back into individual lists
+    # Separa novamente em listas ordenadas
     sorted_population, sorted_fitness = zip(*sorted_combined_lists)
 
     return sorted_population, sorted_fitness

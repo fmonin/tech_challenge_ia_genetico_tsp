@@ -10,7 +10,7 @@ import pygame
 from benchmark_att48 import *
 
 
-# Define constant values
+# Definir valores constantes
 # pygame
 WIDTH, HEIGHT = 800, 400
 NODE_RADIUS = 10
@@ -23,20 +23,20 @@ POPULATION_SIZE = 100
 N_GENERATIONS = None
 MUTATION_PROBABILITY = 0.5
 
-# Define colors
+# Definir cores
 WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 RED = (255, 0, 0)
 BLUE = (0, 0, 255)
 
 
-# Initialize problem
-# Using Random cities generation
+# Inicializar problema
+# Usando geração aleatória de cidades
 # cities_locations = [(random.randint(NODE_RADIUS + PLOT_X_OFFSET, WIDTH - NODE_RADIUS), random.randint(NODE_RADIUS, HEIGHT - NODE_RADIUS))
 #                     for _ in range(N_CITIES)]
 
 
-# # # Using Deault Problems: 10, 12 or 15
+# # # Usando problemas padrão: 10, 12 ou 15
 # WIDTH, HEIGHT = 800, 400
 # cities_locations = default_problems[15]
 
@@ -56,16 +56,16 @@ print(f"Best Solution: {fitness_target_solution}")
 # ----- Using att48 benchmark
 
 
-# Initialize Pygame
+# Inicializar Pygame
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("TSP Solver using Pygame")
+pygame.display.set_caption("TSP Solver usando Pygame")
 clock = pygame.time.Clock()
-generation_counter = itertools.count(start=1)  # Start the counter at 1
+generation_counter = itertools.count(start=1)  # Começar o contador em 1
 
 
-# Create Initial Population
-# TODO:- use some heuristic like Nearest Neighbour our Convex Hull to initialize
+# Criar população inicial
+# TODO: usar alguma heurística como vizinho mais próximo ou casco convexo para inicializar
 population = generate_random_population(cities_locations, POPULATION_SIZE)
 best_fitness_values = []
 best_solutions = []
@@ -88,8 +88,11 @@ while running:
     population_fitness = [calculate_fitness(
         individual) for individual in population]
 
+    # Ordena a população pela aptidão (menor distância é melhor).
+    # sort_population retorna tuplas (zip), então convertemos de volta para lista para manter mutabilidade.
     population, population_fitness = sort_population(
         population,  population_fitness)
+    population, population_fitness = list(population), list(population_fitness)
 
     best_fitness = calculate_fitness(population[0])
     best_solution = population[0]
@@ -114,13 +117,16 @@ while running:
         # simple selection based on first 10 best solutions
         # parent1, parent2 = random.choices(population[:10], k=2)
 
-        # solution based on fitness probability
+            # Seleção por probabilidade de aptidão (menor distância -> maior chance)
         probability = 1 / np.array(population_fitness)
         parent1, parent2 = random.choices(population, weights=probability, k=2)
 
-        # child1 = order_crossover(parent1, parent2)
-        child1 = order_crossover(parent1, parent1)
+        # Crossover: combina dois pais em um filho.
+        # Antes havia order_crossover(parent1, parent1), o que não gerava mistura de genes.
+        # Agora usamos parent1 e parent2 para gerar diversidade de rota.
+        child1 = order_crossover(parent1, parent2)
 
+        # Mutação: altera levemente a ordem do filho para explorar vizinhanças.
         child1 = mutate(child1, MUTATION_PROBABILITY)
 
         new_population.append(child1)
