@@ -5,85 +5,68 @@ import math
 import copy 
 from typing import List, Tuple
 
+# Problemas de referência com coordenadas de cidades (casos de teste fixos)
 default_problems = {
-5: [(733, 251), (706, 87), (546, 97), (562, 49), (576, 253)],
-10:[(470, 169), (602, 202), (754, 239), (476, 233), (468, 301), (522, 29), (597, 171), (487, 325), (746, 232), (558, 136)],
-12:[(728, 67), (560, 160), (602, 312), (712, 148), (535, 340), (720, 354), (568, 300), (629, 260), (539, 46), (634, 343), (491, 135), (768, 161)],
-15:[(512, 317), (741, 72), (552, 50), (772, 346), (637, 12), (589, 131), (732, 165), (605, 15), (730, 38), (576, 216), (589, 381), (711, 387), (563, 228), (494, 22), (787, 288)]
+    5: [(733, 251), (706, 87), (546, 97), (562, 49), (576, 253)],
+    10: [(470, 169), (602, 202), (754, 239), (476, 233), (468, 301), (522, 29), (597, 171), (487, 325), (746, 232), (558, 136)],
+    12: [(728, 67), (560, 160), (602, 312), (712, 148), (535, 340), (720, 354), (568, 300), (629, 260), (539, 46), (634, 343), (491, 135), (768, 161)],
+    15: [(512, 317), (741, 72), (552, 50), (772, 346), (637, 12), (589, 131), (732, 165), (605, 15), (730, 38), (576, 216), (589, 381), (711, 387), (563, 228), (494, 22), (787, 288)]
 }
 
 def generate_random_population(cities_location: List[Tuple[float, float]], population_size: int) -> List[List[Tuple[float, float]]]:
-    """
-    Gera uma população aleatória de rotas para um conjunto de cidades.
+    """Gera uma população inicial de rotas aleatórias.
 
-    Parâmetros:
-    - cities_location (List[Tuple[float, float]]): Lista de coordenadas das cidades.
-    - population_size (int): Tamanho da população.
-
-    Retorna:
-    List[List[Tuple[float, float]]]: Lista de rotas, cada rota é uma lista de coordenadas de cidades.
+    Cada indivíduo é uma permutação completa das cidades (cada cidade aparece apenas uma vez).
     """
     return [random.sample(cities_location, len(cities_location)) for _ in range(population_size)]
 
 
 def calculate_distance(point1: Tuple[float, float], point2: Tuple[float, float]) -> float:
-    """
-    Calcula a distância Euclidiana entre dois pontos.
-
-    Parâmetros:
-    - point1 (Tuple[float, float]): Coordenadas do primeiro ponto.
-    - point2 (Tuple[float, float]): Coordenadas do segundo ponto.
-
-    Retorna:
-    float: Distância Euclidiana entre os pontos.
-    """
+    """Calcula a distância Euclidiana entre dois pontos 2D."""
     return math.sqrt((point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
 def calculate_fitness(path: List[Tuple[float, float]]) -> float:
-    """
-    Calcula a aptidão de um caminho com base na distância Euclidiana total.
+    """Calcula a fitness de um caminho como a soma das distâncias de viagem.
 
-    Parâmetros:
-    - path (List[Tuple[float, float]]): Lista de coordenadas do caminho.
-
-    Retorna:
-    float: Distância total do caminho.
+    A fitness é menor para soluções melhores (menor distância total).
     """
     distance = 0
     n = len(path)
     for i in range(n):
         distance += calculate_distance(path[i], path[(i + 1) % n])
-
     return distance
 
 
 def order_crossover(parent1: List[Tuple[float, float]], parent2: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
-    """
-    Realiza crossover de ordem (OX) entre duas sequências de pais para gerar um filho.
+    """Realiza crossover do tipo Order Crossover (OX) para rotas TSP.
 
-    Parâmetros:
-    - parent1 (List[Tuple[float, float]]): Primeiro pai.
-    - parent2 (List[Tuple[float, float]]): Segundo pai.
+    Preserva a propriedade de permutação (sem cidades repetidas).
 
-    Retorna:
-    List[Tuple[float, float]]: Filho gerado pelo crossover.
+    1) Seleciona um segmento contíguo de parent1.
+    2) Copia esse segmento para o filho.
+    3) Preenche as posições restantes com as cidades de parent2 na ordem,
+       ignorando cidades já copiadas.
     """
     length = len(parent1)
+    if length <= 1:
+        return parent1.copy()
 
-    # Escolhe dois índices aleatórios para o crossover
-    start_index = random.randint(0, length - 1)
-    end_index = random.randint(start_index + 1, length)
+    # Escolhe dois pontos de corte para o crossover
+    start_index = random.randint(0, length - 2)
+    end_index = random.randint(start_index + 1, length - 1)
 
-    # Inicializa o filho com uma cópia do segmento de parent1
-    child = parent1[start_index:end_index]
+    # Inicializa o filho com valores vazios
+    child = [None] * length
+    child[start_index:end_index + 1] = parent1[start_index:end_index + 1]
 
-    # Preenche as posições restantes com genes de parent2
-    remaining_positions = [i for i in range(length) if i < start_index or i >= end_index]
-    remaining_genes = [gene for gene in parent2 if gene not in child]
-
-    for position, gene in zip(remaining_positions, remaining_genes):
-        child.insert(position, gene)
+    parent2_index = 0
+    for i in range(length):
+        if child[i] is None:
+            while parent2[parent2_index] in child:
+                parent2_index += 1
+            child[i] = parent2[parent2_index]
+            parent2_index += 1
 
     return child
 
@@ -114,36 +97,58 @@ def order_crossover(parent1: List[Tuple[float, float]], parent2: List[Tuple[floa
 
 
 
-# TODO: implementar intensidade de mutação e inverter segmentos em vez de apenas trocar dois vizinhos.
-def mutate(solution:  List[Tuple[float, float]], mutation_probability: float) ->  List[Tuple[float, float]]:
+# TODO: implementar intensidade de mutação e inversão de blocos (2-opt late) para evolução mais robusta.
+def two_opt_improve(path: List[Tuple[float, float]]) -> List[Tuple[float, float]]:
+    """Aplica um passo de melhoria 2-opt para refinar um caminho.
+
+    Testa trocas de arestas (i,j) e aplica a melhor inversão local.
     """
-    Mutação de uma solução invertendo um segmento da sequência com probabilidade definida.
+    n = len(path)
+    best_distance = calculate_fitness(path)
+    best_path = path
 
-    Parâmetros:
-    - solution (List[int]): Sequência a ser mutada.
-    - mutation_probability (float): Probabilidade de mutação.
+    for i in range(1, n - 2):
+        for j in range(i + 1, n - 1):
+            new_path = path[:i] + path[i:j+1][::-1] + path[j+1:]
+            new_distance = calculate_fitness(new_path)
+            if new_distance < best_distance:
+                best_distance = new_distance
+                best_path = new_path
+    return best_path
 
-    Retorna:
-    List[int]: Solução mutada.
+
+def mutate(solution:  List[Tuple[float, float]], mutation_probability: float) ->  List[Tuple[float, float]]:
+    """Mutação com swap/inversão para melhorar exploração do espaço de soluções.
+
+    Com probabilidade de mutação:
+    - 50% troca duas cidades aleatórias (swap)
+    - 50% inverte um segmento contínuo (inversion)
     """
     mutated_solution = copy.deepcopy(solution)
+    if len(solution) < 2:
+        return solution
 
-    # Verifica se deve aplicar mutação
     if random.random() < mutation_probability:
-        
-        # Garante ao menos duas cidades para trocar
-        if len(solution) < 2:
-            return solution
-    
-        # Seleciona índice aleatório (excluindo o último) para troca
-        index = random.randint(0, len(solution) - 2)
-        
-        # Troca duas cidades vizinhas
-        mutated_solution[index], mutated_solution[index + 1] = solution[index + 1], solution[index]   
-        
+        if random.random() < 0.5:
+            i, j = random.sample(range(len(solution)), 2)
+            mutated_solution[i], mutated_solution[j] = mutated_solution[j], mutated_solution[i]
+        else:
+            i, j = sorted(random.sample(range(len(solution)), 2))
+            mutated_solution[i:j+1] = list(reversed(mutated_solution[i:j+1]))
+
     return mutated_solution
 
-### Demonstration: mutation test code    
+
+def tournament_selection(population: List[List[Tuple[float, float]]], fitness: List[float], k: int = 5) -> List[Tuple[float, float]]:
+    """Seleciona um pai por torneio de tamanho k.
+
+    Retorna o melhor entre k indivíduos escolhidos aleatoriamente.
+    """
+    selected = random.sample(list(zip(population, fitness)), k)
+    selected.sort(key=lambda x: x[1])
+    return selected[0][0]
+
+### Demonstração: código de teste da função de mutação  
 # # Example usage:
 # original_solution = [(1, 1), (2, 2), (3, 3), (4, 4)]
 # mutation_probability = 1
@@ -154,25 +159,10 @@ def mutate(solution:  List[Tuple[float, float]], mutation_probability: float) ->
 
 
 def sort_population(population: List[List[Tuple[float, float]]], fitness: List[float]) -> Tuple[List[List[Tuple[float, float]]], List[float]]:
-    """
-    Sort a population based on fitness values.
-
-    Parameters:
-    - population (List[List[Tuple[float, float]]]): The population of solutions, where each solution is represented as a list.
-    - fitness (List[float]): The corresponding fitness values for each solution in the population.
-
-    Returns:
-    Tuple[List[List[Tuple[float, float]]], List[float]]: A tuple containing the sorted population and corresponding sorted fitness values.
-    """
-    # Combina população e aptidão em pares
+    """Ordena a população pelo valor de fitness (menor é melhor)."""
     combined_lists = list(zip(population, fitness))
-
-    # Ordena pelo valor de aptidão
     sorted_combined_lists = sorted(combined_lists, key=lambda x: x[1])
-
-    # Separa novamente em listas ordenadas
     sorted_population, sorted_fitness = zip(*sorted_combined_lists)
-
     return sorted_population, sorted_fitness
 
 
@@ -185,45 +175,38 @@ if __name__ == '__main__':
     cities_locations = [(random.randint(0, 100), random.randint(0, 100))
               for _ in range(N_CITIES)]
     
-    # CREATE INITIAL POPULATION
+    # CRIA POPULAÇÃO INICIAL
     population = generate_random_population(cities_locations, POPULATION_SIZE)
 
-    # Lists to store best fitness and generation for plotting
+    # Listas para armazenar os melhores fitness por geração
     best_fitness_values = []
     best_solutions = []
     
     for generation in range(N_GENERATIONS):
-  
-        
-        population_fitness = [calculate_fitness(individual) for individual in population]    
-        
+        population_fitness = [calculate_fitness(individual) for individual in population]
         population, population_fitness = sort_population(population,  population_fitness)
-        
+
         best_fitness = calculate_fitness(population[0])
         best_solution = population[0]
-           
+
         best_fitness_values.append(best_fitness)
-        best_solutions.append(best_solution)    
+        best_solutions.append(best_solution)
 
-        print(f"Generation {generation}: Best fitness = {best_fitness}")
+        print(f"Geração {generation}: Melhor fitness = {best_fitness}")
 
-        new_population = [population[0]]  # Keep the best individual: ELITISM
+        # ELITISMO: mantém o melhor indivíduo para a próxima geração
+        new_population = [population[0]]
         
         while len(new_population) < POPULATION_SIZE:
-            
-            # SELECTION
-            parent1, parent2 = random.choices(population[:10], k=2)  # Select parents from the top 10 individuals
-            
-            # CROSSOVER
+            # SELEÇÃO de pais via amostragem simples do top 10
+            parent1, parent2 = random.choices(population[:10], k=2)
+            # CROSSOVER (OX) preserva permutação
             child1 = order_crossover(parent1, parent2)
-            
-            ## MUTATION
+            # MUTAÇÃO com swap/inversão
             child1 = mutate(child1, MUTATION_PROBABILITY)
-            
             new_population.append(child1)
-            
-    
-        print('generation: ', generation)
+
+        print('geração: ', generation)
         population = new_population
     
 

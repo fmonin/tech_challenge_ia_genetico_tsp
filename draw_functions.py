@@ -16,15 +16,14 @@ matplotlib.use("Agg")
 
 
 def draw_plot(screen: pygame.Surface, x: list, y: list, x_label: str = 'Generation', y_label: str = 'Fitness') -> None:
-    """
-    Desenha um gráfico na tela do Pygame usando Matplotlib.
+    """Desenha um gráfico de linha no surface do Pygame usando Matplotlib.
 
     Parâmetros:
-    - screen (pygame.Surface): A superfície do Pygame para desenhar o gráfico.
-    - x (list): Valores do eixo x.
-    - y (list): Valores do eixo y.
-    - x_label (str): Rótulo do eixo x (padrão: 'Generation').
-    - y_label (str): Rótulo do eixo y (padrão: 'Fitness').
+    - screen: superfície para desenhar.
+    - x: valores do eixo x.
+    - y: valores do eixo y.
+    - x_label: rótulo do eixo x.
+    - y_label: rótulo do eixo y.
     """
     fig, ax = plt.subplots(figsize=(4, 4), dpi=100)
     ax.plot(x, y)
@@ -34,23 +33,21 @@ def draw_plot(screen: pygame.Surface, x: list, y: list, x_label: str = 'Generati
 
     canvas = FigureCanvasAgg(fig)
     canvas.draw()
-    raw_data = canvas.tostring_argb()
+    raw_data = canvas.buffer_rgba()
+
     size = canvas.get_width_height()
-    surf = pygame.image.fromstring(raw_data, size, "ARGB")
+    surf = pygame.image.frombuffer(raw_data, size, "RGBA")
     screen.blit(surf, (0, 0))
+    plt.close(fig)
     
 def draw_cities(screen: pygame.Surface, cities_locations: List[Tuple[int, int]], rgb_color: Tuple[int, int, int], node_radius: int) -> None:
-    """
-    Desenha círculos representando as cidades na tela do Pygame.
+    """Desenha círculos para cada cidade em tela do Pygame.
 
     Parâmetros:
-    - screen (pygame.Surface): A superfície do Pygame em que desenhar as cidades.
-    - cities_locations (List[Tuple[int, int]]): Lista de coordenadas (x, y) das cidades.
-    - rgb_color (Tuple[int, int, int]): Tupla RGB da cor dos círculos.
-    - node_radius (int): Raio dos círculos.
-
-    Retorna:
-    None
+    - screen: superfície Pygame.
+    - cities_locations: lista de posições (x, y).
+    - rgb_color: cor do círculo.
+    - node_radius: raio do nó.
     """
     for city_location in cities_locations:
         pygame.draw.circle(screen, rgb_color, city_location, node_radius)
@@ -58,35 +55,34 @@ def draw_cities(screen: pygame.Surface, cities_locations: List[Tuple[int, int]],
 
 
 def draw_paths(screen: pygame.Surface, path: List[Tuple[int, int]], rgb_color: Tuple[int, int, int], width: int = 1):
-    """
-    Desenha um caminho na tela do Pygame.
+    """Desenha um caminho poligonal conectando as cidades em ordem.
 
     Parâmetros:
-    - screen (pygame.Surface): A superfície do Pygame para desenhar o caminho.
-    - path (List[Tuple[int, int]]): Lista de coordenadas do caminho.
-    - rgb_color (Tuple[int, int, int]): Valores RGB da cor do caminho.
-    - width (int): Largura das linhas (padrão 1).
+    - screen: superfície Pygame.
+    - path: lista de coordenadas do caminho.
+    - rgb_color: cor da linha.
+    - width: espessura da linha.
     """
     pygame.draw.lines(screen, rgb_color, True, path, width=width)
 
 
 def draw_text(screen: pygame.Surface, text: str, color: pygame.Color) -> None:
-    """
-    Desenha texto na tela do Pygame.
+    """Desenha texto na tela do Pygame.
 
     Parâmetros:
-    - screen (pygame.Surface): A superfície do Pygame para desenhar o texto.
-    - text (str): O texto a ser exibido.
-    - color (pygame.Color): A cor do texto.
+    - screen: superfície Pygame.
+    - text: texto para renderizar.
+    - color: cor do texto.
     """
-    pygame.font.init()  # Deve ser chamado no início
+    pygame.font.init()  # Inicializa o sistema de fontes do Pygame
 
     font_size = 15
     my_font = pygame.font.SysFont('Arial', font_size)
     text_surface = my_font.render(text, False, color)
-    
-    cities_locations = []  # Assuming you have this list defined somewhere
-    text_position = (np.average(np.array(cities_locations)[:, 0]), HEIGHT - 1.5 * font_size)
-    
+
+    # OBS: esta função usa uma variável `cities_locations` vazia local.
+    # Pode ser substituído por uma posição fixa ou recebida como argumento.
+    cities_locations = []
+    text_position = (0, 0)
     screen.blit(text_surface, text_position)
 
