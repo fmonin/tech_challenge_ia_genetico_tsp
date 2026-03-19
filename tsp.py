@@ -32,26 +32,26 @@ BLUE = (0, 0, 255)
 
 # Inicializar problema de TSP
 # Geração aleatória de cidades (comentada atualmente)
-cities_locations = [(random.randint(NODE_RADIUS + PLOT_X_OFFSET, WIDTH - NODE_RADIUS), random.randint(NODE_RADIUS, HEIGHT - NODE_RADIUS))
-                    for _ in range(N_CITIES)]
+#cities_locations = [(random.randint(NODE_RADIUS + PLOT_X_OFFSET, WIDTH - NODE_RADIUS), random.randint(NODE_RADIUS, HEIGHT - NODE_RADIUS))
+#                    for _ in range(N_CITIES)]
 
-# Usar problema fixo predefinido (5 cidades) para testes e visualização rápida
+# Usar problema fixo predefinido (15 cidades) para testes e visualização rápida
 # WIDTH, HEIGHT = 800, 400
 # cities_locations = default_problems[15]
 
 
 # Opção de benchmark att48 (deixe comentado se usar problema predefinido)
-# WIDTH, HEIGHT = 1500, 800
-# att_cities_locations = np.array(att_48_cities_locations)
-# max_x = max(point[0] for point in att_cities_locations)
-# max_y = max(point[1] for point in att_cities_locations)
-# scale_x = (WIDTH - PLOT_X_OFFSET - NODE_RADIUS) / max_x
-# scale_y = HEIGHT / max_y
-# cities_locations = [(int(point[0] * scale_x + PLOT_X_OFFSET),
-#                      int(point[1] * scale_y)) for point in att_cities_locations]
-# target_solution = [cities_locations[i-1] for i in att_48_cities_order]
-# fitness_target_solution = calculate_fitness(target_solution)
-# print(f"Melhor solução de referência: {fitness_target_solution}")
+WIDTH, HEIGHT = 1500, 800
+att_cities_locations = np.array(att_48_cities_locations)
+max_x = max(point[0] for point in att_cities_locations)
+max_y = max(point[1] for point in att_cities_locations)
+scale_x = (WIDTH - PLOT_X_OFFSET - NODE_RADIUS) / max_x
+scale_y = HEIGHT / max_y
+cities_locations = [(int(point[0] * scale_x + PLOT_X_OFFSET),
+                     int(point[1] * scale_y)) for point in att_cities_locations]
+target_solution = [cities_locations[i-1] for i in att_48_cities_order]
+fitness_target_solution = calculate_fitness(target_solution)
+print(f"Melhor solução de referência: {fitness_target_solution}")
 # ----- Benchmark att48
 
 
