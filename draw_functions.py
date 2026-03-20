@@ -1,88 +1,176 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Dec 22 16:03:11 2023
-
-@author: SérgioPolimante
-"""
-import pylab
-import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_agg import FigureCanvasAgg
 import matplotlib
+matplotlib.use('Agg')
+
+import matplotlib.pyplot as plt
 import pygame
-from typing import List, Tuple
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from typing import Dict, List, Tuple
 
-matplotlib.use("Agg")
 
+def draw_plot(
+    screen: pygame.Surface,
+    x: list,
+    series: list,
+    x_label: str = 'Geração',
+    y_label: str = 'Fitness',
+    position: Tuple[int, int] = (0, 0)
+) -> None:
+    """Desenha um gráfico dentro da tela.
 
-def draw_plot(screen: pygame.Surface, x: list, y: list, x_label: str = 'Generation', y_label: str = 'Fitness') -> None:
-    """Desenha um gráfico de linha no surface do Pygame usando Matplotlib.
-
-    Parâmetros:
-    - screen: superfície para desenhar.
-    - x: valores do eixo x.
-    - y: valores do eixo y.
-    - x_label: rótulo do eixo x.
-    - y_label: rótulo do eixo y.
+    Agora ele aceita várias linhas.
+    Cada item de series precisa ter:
+    - label
+    - values
+    - color
     """
-    fig, ax = plt.subplots(figsize=(4, 4), dpi=100)
-    ax.plot(x, y)
+    fig, ax = plt.subplots(figsize=(5.1, 3.2), dpi=100)
+
+    for item in series:
+        # O matplotlib usa cor de 0 a 1, então aqui eu converto do padrão RGB.
+        rgb = item['color']
+        color = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+
+        ax.plot(
+            x,
+            item['values'],
+            label=item['label'],
+            linewidth=2.0,
+            color=color
+        )
+
     ax.set_ylabel(y_label)
     ax.set_xlabel(x_label)
+    ax.grid(alpha=0.3)
+    ax.legend(fontsize=8, loc='best')
+    fig.patch.set_facecolor('white')
+    ax.set_facecolor('#f8f8f8')
+    ax.tick_params(axis='x', labelsize=8)
+    ax.tick_params(axis='y', labelsize=8)
     plt.tight_layout()
 
     canvas = FigureCanvasAgg(fig)
     canvas.draw()
     raw_data = canvas.buffer_rgba()
-
     size = canvas.get_width_height()
-    surf = pygame.image.frombuffer(raw_data, size, "RGBA")
-    screen.blit(surf, (0, 0))
+    surf = pygame.image.frombuffer(raw_data, size, 'RGBA')
+    screen.blit(surf, position)
     plt.close(fig)
-    
-def draw_cities(screen: pygame.Surface, cities_locations: List[Tuple[int, int]], rgb_color: Tuple[int, int, int], node_radius: int) -> None:
-    """Desenha círculos para cada cidade em tela do Pygame.
-
-    Parâmetros:
-    - screen: superfície Pygame.
-    - cities_locations: lista de posições (x, y).
-    - rgb_color: cor do círculo.
-    - node_radius: raio do nó.
-    """
-    for city_location in cities_locations:
-        pygame.draw.circle(screen, rgb_color, city_location, node_radius)
 
 
+def draw_text(
+    screen: pygame.Surface,
+    text: str,
+    color: Tuple[int, int, int],
+    position: Tuple[int, int],
+    font_size: int = 16,
+    bold: bool = False
+) -> None:
+    """Escreve um texto simples na tela."""
+    pygame.font.init()
+    font = pygame.font.SysFont('Arial', font_size, bold=bold)
+    text_surface = font.render(text, True, color)
+    screen.blit(text_surface, position)
 
-def draw_paths(screen: pygame.Surface, path: List[Tuple[int, int]], rgb_color: Tuple[int, int, int], width: int = 1):
-    """Desenha um caminho poligonal conectando as cidades em ordem.
 
-    Parâmetros:
-    - screen: superfície Pygame.
-    - path: lista de coordenadas do caminho.
-    - rgb_color: cor da linha.
-    - width: espessura da linha.
-    """
-    pygame.draw.lines(screen, rgb_color, True, path, width=width)
+def draw_cities(
+    screen: pygame.Surface,
+    cities: List[Dict],
+    rgb_color: Tuple[int, int, int],
+    node_radius: int = 5,
+    show_labels: bool = False
+) -> None:
+    """Desenha as cidades no mapa."""
+    for city in cities:
+        position = city['screen_pos']
+        pygame.draw.circle(screen, rgb_color, position, node_radius)
+        pygame.draw.circle(screen, (255, 255, 255), position, max(1, node_radius - 2))
+
+        if city['priority'] == 'critica':
+            pygame.draw.circle(screen, (220, 60, 60), position, node_radius + 2, 1)
+
+        if show_labels:
+            draw_text(screen, city['name'], (230, 230, 230), (position[0] + 6, position[1] - 8), font_size=11)
 
 
-def draw_text(screen: pygame.Surface, text: str, color: pygame.Color) -> None:
-    """Desenha texto na tela do Pygame.
+def draw_paths(
+    screen: pygame.Surface,
+    path: List[Tuple[int, int]],
+    rgb_color: Tuple[int, int, int],
+    width: int = 1,
+    close_path: bool = True
+) -> None:
+    """Desenha a rota na tela."""
+    if len(path) < 2:
+        return
 
-    Parâmetros:
-    - screen: superfície Pygame.
-    - text: texto para renderizar.
-    - color: cor do texto.
-    """
-    pygame.font.init()  # Inicializa o sistema de fontes do Pygame
+    if close_path:
+        pygame.draw.lines(screen, rgb_color, True, path, width)
+    else:
+        pygame.draw.lines(screen, rgb_color, False, path, width)
 
-    font_size = 15
-    my_font = pygame.font.SysFont('Arial', font_size)
-    text_surface = my_font.render(text, False, color)
 
-    # OBS: esta função usa uma variável `cities_locations` vazia local.
-    # Pode ser substituído por uma posição fixa ou recebida como argumento.
-    cities_locations = []
-    text_position = (0, 0)
-    screen.blit(text_surface, text_position)
+def draw_vehicle_legend(screen: pygame.Surface, vehicles: List[Dict], position: Tuple[int, int]) -> None:
+    """Desenha a legenda com os veículos disponíveis."""
+    x, y = position
+    panel_rect = pygame.Rect(x, y, 360, 145)
+    pygame.draw.rect(screen, (20, 28, 40), panel_rect, border_radius=8)
+    pygame.draw.rect(screen, (80, 120, 180), panel_rect, 1, border_radius=8)
 
+    draw_text(screen, 'Legenda dos veículos', (255, 255, 255), (x + 10, y + 8), font_size=18, bold=True)
+
+    for index, vehicle in enumerate(vehicles):
+        top = y + 36 + index * 32
+        pygame.draw.circle(screen, vehicle['color'], (x + 14, top + 8), 6)
+        text = (
+            f"{vehicle['label']} | {vehicle['name']} | cap: {vehicle['capacity']} | "
+            f"aut: {vehicle['max_distance']} km | custo: {vehicle['operational_cost']}"
+        )
+        draw_text(screen, text, (225, 225, 225), (x + 28, top), font_size=14)
+
+
+def draw_route_summary(screen: pygame.Surface, route_results: List[Dict], position: Tuple[int, int]) -> None:
+    """Mostra um resumo das 3 rotas."""
+    x, y = position
+    panel_rect = pygame.Rect(x, y, 430, 170)
+    pygame.draw.rect(screen, (20, 28, 40), panel_rect, border_radius=8)
+    pygame.draw.rect(screen, (80, 120, 180), panel_rect, 1, border_radius=8)
+
+    draw_text(screen, 'Resumo das rotas', (255, 255, 255), (x + 10, y + 8), font_size=18, bold=True)
+
+    for i, result in enumerate(route_results):
+        line_y = y + 40 + i * 40
+        vehicle = result['vehicle']
+        info = (
+            f"Rota {i + 1} | {vehicle['label']} - {vehicle['name']} | "
+            f"cidades: {len(result['best_route'])} | demanda: {result['demand']} | "
+            f"dist: {result['distance_km']:.1f} km | fit: {result['fitness']:.1f}"
+        )
+        draw_text(screen, info, vehicle['color'], (x + 10, line_y), font_size=14)
+        extra = f"críticas: {result['critical_count']} | penalidade: {result['penalty']:.1f}"
+        draw_text(screen, extra, (215, 215, 215), (x + 28, line_y + 18), font_size=13)
+
+
+def save_fitness_chart(series: list, output_path: str = 'fitness_evolution.png') -> None:
+    """Salva o gráfico final com várias linhas."""
+    fig, ax = plt.subplots(figsize=(11, 5), dpi=120)
+
+    for item in series:
+        rgb = item['color']
+        color = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+
+        ax.plot(
+            item['x'],
+            item['values'],
+            label=item['label'],
+            linewidth=2.2,
+            color=color
+        )
+
+    ax.set_title('Evolução do fitness por veículo e fitness global')
+    ax.set_xlabel('Geração')
+    ax.set_ylabel('Fitness')
+    ax.grid(alpha=0.3)
+    ax.legend()
+    plt.tight_layout()
+    fig.savefig(output_path)
+    plt.close(fig)
