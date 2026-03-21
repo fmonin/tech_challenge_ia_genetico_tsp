@@ -1,46 +1,150 @@
-# TSP Solver using Genetic Algorithm
+# VRP simplificado com Algoritmo Genético
 
-This repository contains a Python implementation of a Traveling Salesman Problem (TSP) solver using a Genetic Algorithm (GA). The TSP is a classic problem in the field of combinatorial optimization, where the goal is to find the shortest possible route that visits a set of given cities exactly once and returns to the original city.
+Este projeto adapta uma base de TSP para uma versão simplificada de **VRP (Vehicle Routing Problem)**, com foco em uma entrega acadêmica de pós-graduação.
 
-## Overview
+A ideia do sistema é otimizar rotas de entrega de medicamentos e insumos usando **Algoritmo Genético**, considerando:
+- 90 cidades reais da região de São Paulo
+- prioridade de entrega
+- capacidade dos veículos
+- autonomia dos veículos
+- até 3 veículos disponíveis
+- visualização das rotas e da evolução do fitness
 
-The TSP solver employs a Genetic Algorithm to iteratively evolve a population of candidate solutions towards an optimal or near-optimal solution. The GA operates by mimicking the process of natural selection, where individuals with higher fitness (i.e., shorter route distance) are more likely to survive and produce offspring.
+## Objetivo da atividade
 
-## Files
+O trabalho parte do problema do caixeiro viajante e evolui para um cenário mais realista de roteamento.
 
-- **genetic_algorithm.py**: Contains the implementation of the Genetic Algorithm, including functions for generating random populations, calculating fitness, performing crossover and mutation operations, and sorting populations based on fitness.
-- **tsp.py**: Implements the main TSP solver using Pygame for visualization. It initializes the problem, creates the initial population, and iteratively evolves the population while visualizing the best solution found so far.
-- **draw_functions.py**: Provides functions for drawing cities, paths, and plots using Pygame.
+O algoritmo tenta encontrar boas sequências de atendimento das cidades e, depois, divide essa sequência em viagens menores para verificar quais veículos conseguem executar cada trecho.
 
-## Usage
+## Estrutura dos arquivos
 
-To run the TSP solver, execute the `tsp.py` script using Python. The solver allows you to choose between different problem instances:
+### `genetic_algorithm.py`
+Arquivo com a lógica principal do algoritmo genético.
 
-- Randomly generated cities
-- Default predefined problems with 10, 12, or 15 cities
-- `att48` benchmark dataset (uncomment relevant code in `tsp.py`)
+Funções principais:
+- geração da população inicial
+- crossover do tipo OX
+- mutação por troca ou inversão
+- seleção por torneio
+- ordenação da população
+- melhoria local com 2-opt
+- criação da próxima geração
 
-You can customize parameters such as population size, number of generations, and mutation probability directly in the `tsp.py` script.
+### `tsp.py`
+Arquivo principal do projeto.
 
-## Dependencies
+Ele contém:
+- cadastro das 90 cidades
+- definição dos 3 veículos
+- cálculo de distância geográfica
+- lógica para dividir a rota em até 3 viagens
+- seleção automática dos veículos
+- função fitness
+- laço principal com animação e exibição no terminal
 
-- Python 3.x
-- Pygame (for visualization)
+### `draw_functions.py`
+Arquivo de desenho da interface em Pygame.
 
-Ensure Pygame is installed before running the solver. You can install Pygame using pip:
+Ele mostra:
+- mapa com as cidades
+- rota em teste em cinza
+- melhor rota em azul
+- gráfico da evolução do fitness
+- painel com distância, penalidades e veículos escolhidos
+
+### `benchmark_att48.py`
+Permanece como benchmark auxiliar da estrutura original.
+
+### `demo_crossover.py`
+Demonstra o crossover usado no projeto.
+
+### `demo_mutation.py`
+Demonstra a mutação usada no projeto.
+
+## Como o algoritmo funciona
+
+1. O sistema cria várias rotas aleatórias com as cidades clientes.
+2. Cada rota recebe uma avaliação.
+3. A rota é dividida em viagens menores, respeitando a viabilidade dos veículos.
+4. O sistema testa qual combinação de veículos atende melhor essas viagens.
+5. A fitness leva em conta distância, custo, prioridade e penalidades.
+6. As melhores rotas são mantidas.
+7. Novas rotas são criadas com crossover e mutação.
+8. O processo se repete por várias gerações.
+
+## Veículos usados
+
+O projeto trabalha com 3 tipos de veículos:
+
+### Veículo Pequeno
+- capacidade: 45
+- autonomia: 240 km
+- custo operacional menor
+
+### Veículo Médio
+- capacidade: 90
+- autonomia: 420 km
+- custo intermediário
+
+### Veículo Grande
+- capacidade: 160
+- autonomia: 700 km
+- custo maior, mas suporta cargas maiores
+
+## Função fitness
+
+A fitness foi pensada de forma simples, mas coerente para a apresentação.
+
+Ela considera:
+- distância total percorrida
+- custo de uso dos veículos
+- penalidade quando a solução exige mais de 3 viagens
+- penalidade para entregas críticas muito tarde
+- recompensa pequena quando cidades críticas aparecem mais cedo
+
+**Quanto menor a fitness, melhor a solução.**
+
+## Dependências
+
+Instale as bibliotecas abaixo:
 
 ```bash
 pip install pygame
 ```
 
-## Acknowledgments
+## Como executar
 
-This TSP solver was developed as a learning project and draws inspiration from various online resources and academic materials on Genetic Algorithms and the Traveling Salesman Problem. Special thanks to the authors of those resources for sharing their knowledge.
+No terminal, dentro da pasta do projeto:
 
-## License
+```bash
+python tsp.py
+```
 
-This project is licensed under the [MIT License](LICENSE).
+## O que aparece durante a execução
 
----
+No terminal:
+- geração atual
+- fitness da melhor solução
+- distância total da melhor solução
+- veículos escolhidos
 
-Feel free to contribute to this repository by providing enhancements, bug fixes, or additional features. If you encounter any issues or have suggestions for improvements, please open an issue on the repository. Happy solving!
+Na tela:
+- cidades do mapa
+- rota em teste em cinza
+- melhor rota em azul
+- gráfico da evolução do fitness
+- painel com métricas da melhor solução
+
+## Observação importante
+
+As cidades são reais e da região de São Paulo, mas as coordenadas foram colocadas de forma **aproximada** para fins didáticos e de visualização.
+
+## Melhorias futuras
+
+Algumas ideias para evoluir o projeto:
+- usar mapa real com biblioteca geográfica
+- separar depósito, hospitais e farmácias por tipo
+- colocar janela de tempo
+- colocar mais de um veículo por tipo
+- exportar resultado para CSV ou PDF
+- comparar com outras heurísticas
