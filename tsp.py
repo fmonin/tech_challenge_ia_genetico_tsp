@@ -1,4 +1,3 @@
-import itertools
 import math
 import random
 import sys
@@ -44,26 +43,19 @@ BACKGROUND = (14, 18, 28)
 MAP_BACKGROUND = (24, 30, 45)
 GRID_COLOR = (50, 58, 82)
 GRAY_ROUTE = (150, 150, 150)
-BLUE_ROUTE = (70, 150, 255)
 WHITE = (240, 240, 240)
 SOFT_TEXT = (205, 210, 220)
 YELLOW = (240, 210, 90)
 
-# Aqui eu corrigi um detalhe do enunciado.
-# Foi pedido 90 cidades, mas a divisão 20 + 35 + 45 soma 100.
-# Para manter as 90 cidades, usei 20 + 25 + 45.
-ROUTE_SIZES = [20, 25, 45]
-
-# Deixei seed para facilitar reproduzir a execução na apresentação.
 random.seed(42)
 
 # ------------------------------
 # Base de cidades reais aproximadas
 # ------------------------------
 # Cada tupla tem:
-# grupo da rota, nome da cidade, latitude, longitude, demanda e prioridade.
+# grupo original, nome da cidade, latitude, longitude, demanda e prioridade.
+# O grupo original foi mantido só como metadado para referência.
 RAW_CITIES = [
-    # Rota 1 - 20 cidades
     (1, 'São Paulo', -23.55, -46.63, 18, 'critica'),
     (1, 'Guarulhos', -23.45, -46.53, 12, 'regular'),
     (1, 'Osasco', -23.53, -46.79, 10, 'regular'),
@@ -84,8 +76,6 @@ RAW_CITIES = [
     (1, 'Diadema', -23.69, -46.62, 10, 'regular'),
     (1, 'São Caetano do Sul', -23.62, -46.55, 9, 'regular'),
     (1, 'Santo André', -23.66, -46.53, 11, 'critica'),
-
-    # Rota 2 - 25 cidades
     (2, 'São Bernardo do Campo', -23.69, -46.56, 14, 'critica'),
     (2, 'Mauá', -23.67, -46.46, 10, 'regular'),
     (2, 'Ribeirão Pires', -23.71, -46.41, 8, 'regular'),
@@ -111,8 +101,6 @@ RAW_CITIES = [
     (2, 'Lorena', -22.73, -45.12, 9, 'regular'),
     (2, 'Cruzeiro', -22.58, -44.96, 8, 'regular'),
     (2, 'Cachoeira Paulista', -22.67, -45.01, 7, 'regular'),
-
-    # Rota 3 - 45 cidades
     (3, 'Campinas', -22.90, -47.06, 17, 'critica'),
     (3, 'Valinhos', -22.97, -46.99, 9, 'regular'),
     (3, 'Vinhedo', -23.03, -46.98, 8, 'regular'),
@@ -160,8 +148,45 @@ RAW_CITIES = [
     (3, 'Peruíbe', -24.31, -47.00, 8, 'regular'),
 ]
 
-# Os 3 veículos disponíveis.
-# Eu deixei nomes simples e números coerentes para a apresentação.
+SELECTED_CITY_NAMES = {
+    "São Paulo",
+    "Guarulhos",
+    "Osasco",
+    "Cotia",
+    "Itapecerica da Serra",
+    "Santo André",
+    "Mairiporã",
+    "São Bernardo do Campo",
+    "Suzano",
+    "Arujá",
+    "Mogi das Cruzes",
+    "Jacareí",
+    "São José dos Campos",
+    "Guaratinguetá",
+    "Campinas",
+    "Jundiaí",
+    "Atibaia",
+    "Sorocaba",
+    "Piracicaba",
+    "Santos",
+}
+
+
+def get_balanced_raw_cities() -> List[Tuple[int, str, float, float, int, str]]:
+    """Retorna 20 cidades escolhidas de forma equilibrada e mesclada.
+
+    Critérios usados:
+    - mistura das 3 regiões originais;
+    - combinação de cidades críticas e regulares;
+    - distribuição geográfica mais espalhada para deixar o mapa visualmente melhor;
+    - quantidade pequena o suficiente para a apresentação ficar mais legível.
+    """
+    selected = [city for city in RAW_CITIES if city[1] in SELECTED_CITY_NAMES]
+
+    # Ordena para manter execução determinística e facilitar comparação de resultados.
+    selected.sort(key=lambda item: (item[0], item[1]))
+    return selected
+
 VEHICLES = [
     {
         'id': 1,
@@ -169,6 +194,10 @@ VEHICLES = [
         'name': 'Pequeno',
         'capacity': 190,
         'max_distance': 280.0,
+        'max_work_minutes': 420,
+        'max_stops': 22,
+        'service_minutes_regular': 8,
+        'service_minutes_critical': 14,
         'operational_cost': 1.00,
         'fixed_cost': 15.0,
         'critical_bonus': 8.0,
@@ -180,6 +209,10 @@ VEHICLES = [
         'name': 'Médio',
         'capacity': 320,
         'max_distance': 520.0,
+        'max_work_minutes': 540,
+        'max_stops': 34,
+        'service_minutes_regular': 8,
+        'service_minutes_critical': 15,
         'operational_cost': 1.12,
         'fixed_cost': 25.0,
         'critical_bonus': 14.0,
@@ -191,6 +224,10 @@ VEHICLES = [
         'name': 'Grande',
         'capacity': 520,
         'max_distance': 900.0,
+        'max_work_minutes': 660,
+        'max_stops': 50,
+        'service_minutes_regular': 9,
+        'service_minutes_critical': 16,
         'operational_cost': 1.28,
         'fixed_cost': 35.0,
         'critical_bonus': 18.0,
@@ -199,54 +236,39 @@ VEHICLES = [
 ]
 
 
-# ------------------------------
-# Funções utilitárias de geografia
-# ------------------------------
 def latlon_to_xy(
     lat: float,
     lon: float,
     min_lat: float,
     max_lat: float,
     min_lon: float,
-    max_lon: float
+    max_lon: float,
 ) -> Tuple[int, int]:
-    """Transforma latitude e longitude em posição de tela.
-
-    Não é mapa real com projeção completa.
-    Aqui a ideia é só posicionar as cidades de forma coerente para a visualização.
-    """
     usable_width = MAP_WIDTH - 40
     usable_height = MAP_HEIGHT - 40
-
     x_ratio = (lon - min_lon) / (max_lon - min_lon)
     y_ratio = (max_lat - lat) / (max_lat - min_lat)
-
     x = MAP_LEFT + 20 + int(x_ratio * usable_width)
     y = MAP_TOP + 20 + int(y_ratio * usable_height)
     return x, y
 
 
 def haversine_km(city_a: Dict, city_b: Dict) -> float:
-    """Calcula a distância aproximada em km entre 2 cidades."""
     radius = 6371.0
     lat1 = math.radians(city_a['lat'])
     lon1 = math.radians(city_a['lon'])
     lat2 = math.radians(city_b['lat'])
     lon2 = math.radians(city_b['lon'])
-
     dlat = lat2 - lat1
     dlon = lon2 - lon1
-
     a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return radius * c
 
 
 def route_distance_km(route: List[Dict], depot: Dict) -> float:
-    """Calcula a distância total da rota saindo e voltando para o depósito."""
     if not route:
         return 0.0
-
     total = haversine_km(depot, route[0])
     for i in range(len(route) - 1):
         total += haversine_km(route[i], route[i + 1])
@@ -254,12 +276,27 @@ def route_distance_km(route: List[Dict], depot: Dict) -> float:
     return total
 
 
-def build_city_objects() -> Tuple[List[Dict], Dict[int, List[Dict]], Dict]:
-    """Monta os objetos das cidades e separa por grupo de rota."""
-    min_lat = min(item[2] for item in RAW_CITIES)
-    max_lat = max(item[2] for item in RAW_CITIES)
-    min_lon = min(item[3] for item in RAW_CITIES)
-    max_lon = max(item[3] for item in RAW_CITIES)
+def estimate_route_minutes(route: List[Dict], vehicle: Dict, depot: Dict) -> float:
+    if not route:
+        return 0.0
+    distance_km = route_distance_km(route, depot)
+    travel_minutes = (distance_km / 45.0) * 60.0
+    service_minutes = 0.0
+    for city in route:
+        if city['priority'] == 'critica':
+            service_minutes += vehicle['service_minutes_critical']
+        else:
+            service_minutes += vehicle['service_minutes_regular']
+    return travel_minutes + service_minutes
+
+
+def build_city_objects() -> Tuple[List[Dict], Dict]:
+    selected_raw_cities = get_balanced_raw_cities()
+
+    min_lat = min(item[2] for item in selected_raw_cities)
+    max_lat = max(item[2] for item in selected_raw_cities)
+    min_lon = min(item[3] for item in selected_raw_cities)
+    max_lon = max(item[3] for item in selected_raw_cities)
 
     depot = {
         'id': 0,
@@ -273,9 +310,7 @@ def build_city_objects() -> Tuple[List[Dict], Dict[int, List[Dict]], Dict]:
     }
 
     all_cities = []
-    groups = {1: [], 2: [], 3: []}
-
-    for city_id, raw in enumerate(RAW_CITIES, start=1):
+    for city_id, raw in enumerate(selected_raw_cities, start=1):
         group, name, lat, lon, demand, priority = raw
         city = {
             'id': city_id,
@@ -288,67 +323,53 @@ def build_city_objects() -> Tuple[List[Dict], Dict[int, List[Dict]], Dict]:
             'screen_pos': latlon_to_xy(lat, lon, min_lat, max_lat, min_lon, max_lon),
         }
         all_cities.append(city)
-        groups[group].append(city)
 
-    return all_cities, groups, depot
+    return all_cities, depot
 
 
 # ------------------------------
-# Regras de negócio do VRP simplificado
+# Regras de negócio do VRP completo
 # ------------------------------
 def priority_position_penalty(route: List[Dict]) -> float:
-    """Penaliza cidades críticas que ficaram muito tarde na rota.
-
-    Quanto mais uma cidade crítica vai para o fim, maior a penalização.
-    """
     penalty = 0.0
     reward = 0.0
-
     for index, city in enumerate(route):
         position_factor = index + 1
         if city['priority'] == 'critica':
             penalty += position_factor * 2.5
             reward += max(0, 20 - position_factor) * 1.2
-
     return penalty - reward
 
 
 def route_demand(route: List[Dict]) -> int:
-    """Soma a demanda total de uma rota."""
     return sum(city['demand'] for city in route)
 
 
 def route_critical_count(route: List[Dict]) -> int:
-    """Conta quantas cidades críticas existem na rota."""
     return sum(1 for city in route if city['priority'] == 'critica')
 
 
 def evaluate_route_for_vehicle(route: List[Dict], vehicle: Dict, depot: Dict) -> Dict:
-    """Avalia uma rota considerando um veículo específico."""
     distance_km = route_distance_km(route, depot)
     total_demand = route_demand(route)
     critical_count = route_critical_count(route)
+    stop_count = len(route)
+    work_minutes = estimate_route_minutes(route, vehicle, depot)
 
     penalty = 0.0
-
-    # Se a carga passar da capacidade, a penalidade cresce bastante.
     if total_demand > vehicle['capacity']:
         penalty += (total_demand - vehicle['capacity']) * 14.0
-
-    # Se a distância passar da autonomia, também penaliza forte.
     if distance_km > vehicle['max_distance']:
         penalty += (distance_km - vehicle['max_distance']) * 10.0
+    if work_minutes > vehicle['max_work_minutes']:
+        penalty += (work_minutes - vehicle['max_work_minutes']) * 2.4
+    if stop_count > vehicle['max_stops']:
+        penalty += (stop_count - vehicle['max_stops']) * 18.0
 
-    # Essa parte ajuda o AG a antecipar cidades críticas.
     priority_penalty = priority_position_penalty(route)
-
-    # O custo operacional ajuda a diferenciar os veículos.
     operational_component = distance_km * vehicle['operational_cost'] + vehicle['fixed_cost']
-
-    # Veículo maior ou mais preparado pode ter um ganho quando a rota tem mais criticidade.
     critical_discount = critical_count * vehicle['critical_bonus']
 
-    # Fitness menor é melhor.
     fitness = distance_km + operational_component + priority_penalty + penalty - critical_discount
 
     return {
@@ -358,95 +379,161 @@ def evaluate_route_for_vehicle(route: List[Dict], vehicle: Dict, depot: Dict) ->
         'critical_count': critical_count,
         'priority_penalty': priority_penalty,
         'penalty': penalty,
+        'stop_count': stop_count,
+        'work_minutes': work_minutes,
         'vehicle': vehicle,
     }
 
 
-def choose_best_vehicle(route: List[Dict], available_vehicles: List[Dict], depot: Dict) -> Dict:
-    """Escolhe o melhor veículo para uma rota olhando demanda, autonomia e criticidade."""
-    evaluations = [evaluate_route_for_vehicle(route, vehicle, depot) for vehicle in available_vehicles]
-    evaluations.sort(key=lambda item: item['fitness'])
-    return evaluations[0]
+def rebalance_routes(routes_by_vehicle: Dict[int, List[Dict]], depot: Dict) -> Dict[int, List[Dict]]:
+    """Faz pequenos ajustes movendo cidades do fim de rotas muito penalizadas.
 
-
-def choose_best_vehicle_assignment(routes: List[List[Dict]], vehicles: List[Dict], depot: Dict) -> List[Dict]:
-    """Testa todas as combinações possíveis entre 3 rotas e 3 veículos.
-
-    Aqui eu garanto uma escolha mais inteligente sem repetir veículo.
-    Como são só 3 rotas e 3 veículos, dá para fazer isso de forma simples.
+    Isso ajuda a distribuição dinâmica entre veículos ficar mais aderente ao VRP.
     """
-    best_assignment = None
-    best_total = float('inf')
+    changed = True
+    max_passes = 5
+    pass_count = 0
 
-    for perm in itertools.permutations(vehicles, len(routes)):
-        current_results = []
-        total = 0.0
+    while changed and pass_count < max_passes:
+        changed = False
+        pass_count += 1
+        evaluations = {
+            v['id']: evaluate_route_for_vehicle(routes_by_vehicle[v['id']], v, depot)
+            for v in VEHICLES
+        }
+        overloaded = [v for v in VEHICLES if evaluations[v['id']]['penalty'] > 0 and routes_by_vehicle[v['id']]]
+        underloaded = [v for v in VEHICLES if evaluations[v['id']]['penalty'] <= 0]
 
-        for route, vehicle in zip(routes, perm):
-            result = evaluate_route_for_vehicle(route, vehicle, depot)
-            current_results.append(result)
-            total += result['fitness']
+        for source_vehicle in overloaded:
+            source_id = source_vehicle['id']
+            route = routes_by_vehicle[source_id]
+            if not route:
+                continue
 
-        if total < best_total:
-            best_total = total
-            best_assignment = current_results
+            candidate_indices = list(range(len(route) - 1, max(-1, len(route) - 5), -1))
+            candidate_indices += [i for i, city in enumerate(route) if city['priority'] == 'regular']
 
-    return best_assignment
+            moved = False
+            for idx in candidate_indices:
+                city = route[idx]
+                best_target_id = None
+                best_improvement = 0.0
+                source_before = evaluations[source_id]['fitness']
+
+                for target_vehicle in underloaded:
+                    target_id = target_vehicle['id']
+                    if target_id == source_id:
+                        continue
+
+                    source_after_route = [c for pos, c in enumerate(route) if pos != idx]
+                    target_after_route = routes_by_vehicle[target_id] + [city]
+                    source_after = evaluate_route_for_vehicle(source_after_route, source_vehicle, depot)['fitness']
+                    target_before = evaluations[target_id]['fitness']
+                    target_after = evaluate_route_for_vehicle(target_after_route, target_vehicle, depot)['fitness']
+                    improvement = (source_before + target_before) - (source_after + target_after)
+
+                    if improvement > best_improvement:
+                        best_improvement = improvement
+                        best_target_id = target_id
+
+                if best_target_id is not None:
+                    moved_city = routes_by_vehicle[source_id].pop(idx)
+                    routes_by_vehicle[best_target_id].append(moved_city)
+                    changed = True
+                    moved = True
+                    break
+
+            if moved:
+                break
+
+    return routes_by_vehicle
 
 
-# ------------------------------
-# Algoritmo genético por rota
-# ------------------------------
+def decode_chromosome_to_routes(sequence: List[Dict], depot: Dict) -> List[Dict]:
+    """Transforma uma permutação global em uma solução VRP completa.
+
+    Aqui o AG decide a ordem global das 90 cidades e o decoder decide dinamicamente
+    em qual veículo cada cidade entra. Isso remove a divisão fixa por grupos.
+    """
+    routes_by_vehicle = {vehicle['id']: [] for vehicle in VEHICLES}
+
+    for city in sequence:
+        best_vehicle_id = None
+        best_score = float('inf')
+
+        for vehicle in VEHICLES:
+            current_route = routes_by_vehicle[vehicle['id']]
+            current_eval = evaluate_route_for_vehicle(current_route, vehicle, depot)
+            candidate_route = current_route + [city]
+            candidate_eval = evaluate_route_for_vehicle(candidate_route, vehicle, depot)
+
+            increment = candidate_eval['fitness'] - current_eval['fitness']
+            balance_penalty = max(0, len(candidate_route) - (len(sequence) / len(VEHICLES))) * 0.9
+            critical_bias = -6.0 if city['priority'] == 'critica' and vehicle['critical_bonus'] >= 14 else 0.0
+            capacity_margin = max(0, candidate_eval['demand'] - vehicle['capacity']) * 2.0
+            score = increment + balance_penalty + capacity_margin + critical_bias
+
+            if score < best_score:
+                best_score = score
+                best_vehicle_id = vehicle['id']
+
+        routes_by_vehicle[best_vehicle_id].append(city)
+
+    routes_by_vehicle = rebalance_routes(routes_by_vehicle, depot)
+
+    results = []
+    total_fitness = 0.0
+    for vehicle in VEHICLES:
+        route = routes_by_vehicle[vehicle['id']]
+        result = evaluate_route_for_vehicle(route, vehicle, depot)
+        result['best_route'] = route
+        results.append(result)
+        total_fitness += result['fitness']
+
+    results.sort(key=lambda item: item['vehicle']['id'])
+    return results
+
+
+def evaluate_solution(sequence: List[Dict], depot: Dict) -> Tuple[float, List[Dict]]:
+    results = decode_chromosome_to_routes(sequence, depot)
+    total_fitness = sum(item['fitness'] for item in results)
+    return total_fitness, results
+
+
 def make_fitness_function(depot: Dict):
-    """Cria uma função de fitness já presa ao depósito.
-
-    Fiz assim para o two-opt conseguir reutilizar a mesma regra.
-    """
-    def evaluator(route: List[Dict]) -> float:
-        return choose_best_vehicle(route, VEHICLES, depot)['fitness']
-
+    def evaluator(sequence: List[Dict]) -> float:
+        return evaluate_solution(sequence, depot)[0]
     return evaluator
 
 
-def evolve_route_population(population: List[List[Dict]], depot: Dict):
-    """Evolui uma população referente a uma única rota."""
-    population_fitness = [choose_best_vehicle(individual, VEHICLES, depot)['fitness'] for individual in population]
+def evolve_global_population(population: List[List[Dict]], depot: Dict):
+    population_fitness = [evaluate_solution(individual, depot)[0] for individual in population]
     population, population_fitness = sort_population(population, population_fitness)
 
-    best_route = population[0]
-    best_result = choose_best_vehicle(best_route, VEHICLES, depot)
+    best_sequence = population[0]
+    best_total_fitness, best_results = evaluate_solution(best_sequence, depot)
 
     new_population = [population[i] for i in range(min(ELITISM, len(population)))]
-    route_fitness = make_fitness_function(depot)
+    solution_fitness = make_fitness_function(depot)
 
     while len(new_population) < len(population):
         parent1 = tournament_selection(population, population_fitness, k=TOURNAMENT_SIZE)
         parent2 = tournament_selection(population, population_fitness, k=TOURNAMENT_SIZE)
-
-        # O crossover cria uma nova ordem de visita.
         child = order_crossover(parent1, parent2)
-
-        # A mutação evita que a busca fique presa cedo demais.
         child = mutate(child, MUTATION_PROBABILITY)
 
-        # Em parte dos filhos eu aplico 2-opt para dar uma refinada.
         if random.random() < 0.45:
-            child = two_opt_improve(child, fitness_function=route_fitness)
+            child = two_opt_improve(child, fitness_function=solution_fitness)
 
         new_population.append(child)
 
-    # Essa rota em teste é a que aparece em cinza na tela.
-    testing_route = random.choice(population[:min(8, len(population))])
-    testing_result = choose_best_vehicle(testing_route, VEHICLES, depot)
+    testing_sequence = random.choice(population[:min(8, len(population))])
+    _, testing_results = evaluate_solution(testing_sequence, depot)
 
-    return new_population, best_result, best_route, population_fitness, testing_route, testing_result
+    return new_population, best_total_fitness, best_results, population_fitness, testing_results
 
 
-# ------------------------------
-# Desenho da tela
-# ------------------------------
 def draw_map_background(screen: pygame.Surface, depot: Dict) -> None:
-    """Desenha o fundo do mapa."""
     map_rect = pygame.Rect(MAP_LEFT, MAP_TOP, MAP_WIDTH, MAP_HEIGHT)
     pygame.draw.rect(screen, MAP_BACKGROUND, map_rect, border_radius=10)
     pygame.draw.rect(screen, (65, 82, 120), map_rect, 1, border_radius=10)
@@ -457,51 +544,31 @@ def draw_map_background(screen: pygame.Surface, depot: Dict) -> None:
         pygame.draw.line(screen, GRID_COLOR, (MAP_LEFT + 10, y), (MAP_LEFT + MAP_WIDTH - 10, y), 1)
 
     draw_text(screen, 'Mapa das cidades da região de São Paulo', WHITE, (MAP_LEFT + 14, MAP_TOP + 10), font_size=20, bold=True)
-    draw_text(screen, 'Cinza = rota em teste | Azul = melhor rota atual', SOFT_TEXT, (MAP_LEFT + 14, MAP_TOP + 36), font_size=14)
+    draw_text(screen, 'Cinza = rota em teste | Melhor rota usa a cor do veículo', SOFT_TEXT, (MAP_LEFT + 14, MAP_TOP + 36), font_size=14)
 
     pygame.draw.circle(screen, (255, 120, 120), depot['screen_pos'], 8)
     draw_text(screen, 'CD', (255, 255, 255), (depot['screen_pos'][0] + 8, depot['screen_pos'][1] - 8), font_size=12, bold=True)
 
 
 def route_to_screen_points(route: List[Dict], depot: Dict) -> List[Tuple[int, int]]:
-    """Converte uma rota para pontos da tela."""
     if not route:
         return []
     return [depot['screen_pos']] + [city['screen_pos'] for city in route] + [depot['screen_pos']]
 
 
-# ------------------------------
-# Programa principal
-# ------------------------------
 def main() -> None:
-    all_cities, city_groups, depot = build_city_objects()
-
-    # Só um check simples para garantir que a base bate com o enunciado ajustado.
-    assert len(all_cities) == 90, 'A base precisa ter exatamente 90 cidades.'
-    assert [len(city_groups[i]) for i in [1, 2, 3]] == ROUTE_SIZES, 'As rotas precisam respeitar 20, 25 e 45 cidades.'
+    all_cities, depot = build_city_objects()
+    assert len(all_cities) == 20, 'A base ativa precisa ter exatamente 20 cidades.'
 
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption('VRP simplificado com Algoritmo Genético')
+    pygame.display.set_caption('VRP com Algoritmo Genético - 20 cidades balanceadas')
     clock = pygame.time.Clock()
 
-    # Cada rota tem sua própria população.
-    # Isso deixa a solução mais fácil de explicar na pós.
-    populations = {
-        1: generate_random_population(city_groups[1], POPULATION_SIZE),
-        2: generate_random_population(city_groups[2], POPULATION_SIZE),
-        3: generate_random_population(city_groups[3], POPULATION_SIZE),
-    }
+    population = generate_random_population(all_cities, POPULATION_SIZE)
 
     best_global_fitness_history = []
-
-    # Aqui eu guardo separadamente o histórico do fitness de cada veículo.
-    # Isso permite mostrar no gráfico qual rota ficou com qual veículo em cada geração.
-    vehicle_fitness_history = {
-        1: [],
-        2: [],
-        3: [],
-    }
+    vehicle_fitness_history = {vehicle['id']: [] for vehicle in VEHICLES}
 
     running = True
     paused = False
@@ -510,7 +577,7 @@ def main() -> None:
 
     print('Execução iniciada...')
     print('Controles: Q = sair | P = pausar/continuar')
-    print('-' * 100)
+    print('-' * 110)
 
     while running and generation < N_GENERATIONS:
         for event in pygame.event.get():
@@ -531,50 +598,21 @@ def main() -> None:
         screen.fill(BACKGROUND)
         draw_map_background(screen, depot)
 
-        best_routes = []
-        testing_routes = []
-
-        # Eu evoluo cada rota separadamente para deixar o trabalho mais didático.
-        # Isso não é o VRP completo mais avançado, mas já mostra bem a ideia.
-        for route_id in [1, 2, 3]:
-            new_population, best_result, best_route, _, testing_route, _ = evolve_route_population(populations[route_id], depot)
-            populations[route_id] = new_population
-            best_routes.append(best_route)
-            testing_routes.append(testing_route)
-
-        # Depois que cada rota foi otimizada, eu faço a melhor combinação dos 3 veículos.
-        assignment_results = choose_best_vehicle_assignment(best_routes, VEHICLES, depot)
-
-        # Atualizo os resultados finais com as rotas e os veículos já casados.
-        merged_results = []
-        global_fitness = 0.0
-
-        for route_index, assignment in enumerate(assignment_results):
-            merged = {
-                **assignment,
-                'best_route': best_routes[route_index],
-                'testing_route': testing_routes[route_index],
-            }
-            merged_results.append(merged)
-            global_fitness += merged['fitness']
-
-        best_global_fitness_history.append(global_fitness)
+        population, global_fitness, merged_results, _, testing_results = evolve_global_population(population, depot)
         final_results = merged_results
+        best_global_fitness_history.append(global_fitness)
 
-        # Aqui eu salvo qual foi o fitness da rota que ficou com cada veículo nessa geração.
         for result in merged_results:
             vehicle_id = result['vehicle']['id']
             vehicle_fitness_history[vehicle_id].append(result['fitness'])
 
-        # Primeiro eu desenho as rotas em teste em cinza.
-        for result in merged_results:
-            test_points = route_to_screen_points(result['testing_route'], depot)
+        for result in testing_results:
+            test_points = route_to_screen_points(result['best_route'], depot)
             draw_paths(screen, test_points, GRAY_ROUTE, width=2, close_path=False)
 
-        # Depois eu desenho a melhor solução da geração.
         for result in merged_results:
             best_points = route_to_screen_points(result['best_route'], depot)
-            draw_paths(screen, best_points, BLUE_ROUTE, width=4, close_path=False)
+            draw_paths(screen, best_points, result['vehicle']['color'], width=4, close_path=False)
 
         draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=False)
 
@@ -613,20 +651,19 @@ def main() -> None:
         )
 
         print(f'Geração {generation:03d} | Fitness global = {global_fitness:10.2f}')
-        for idx, result in enumerate(merged_results, start=1):
+        for result in merged_results:
             vehicle = result['vehicle']
             print(
-                f"  Rota {idx} -> {vehicle['label']} ({vehicle['name']}) | "
-                f"cidades={len(result['best_route'])} | demanda={result['demand']} | "
-                f"distância={result['distance_km']:.1f} km | penalidade={result['penalty']:.1f} | "
+                f"  {vehicle['label']} ({vehicle['name']}) | cidades={len(result['best_route'])} | "
+                f"demanda={result['demand']} | distância={result['distance_km']:.1f} km | "
+                f"tempo={result['work_minutes']:.1f} min | penalidade={result['penalty']:.1f} | "
                 f"fitness={result['fitness']:.2f}"
             )
-        print('-' * 100)
+        print('-' * 110)
 
         pygame.display.flip()
         clock.tick(FPS)
 
-    # No final eu salvo o gráfico para você poder usar na entrega.
     if best_global_fitness_history:
         final_series = [
             {
@@ -647,20 +684,17 @@ def main() -> None:
                 }
             )
 
-        save_fitness_chart(
-            final_series,
-            output_path='fitness_evolution.png',
-        )
+        save_fitness_chart(final_series, output_path='fitness_evolution.png')
 
     if final_results:
         print('\nResumo final da melhor solução encontrada nessa execução:')
-        for idx, result in enumerate(final_results, start=1):
+        for result in final_results:
             vehicle = result['vehicle']
             city_names = ', '.join(city['name'] for city in result['best_route'][:6])
             print(
-                f"Rota {idx}: {vehicle['label']} - {vehicle['name']} | "
+                f"{vehicle['label']} - {vehicle['name']} | cidades={len(result['best_route'])} | "
                 f"distância={result['distance_km']:.1f} km | demanda={result['demand']} | "
-                f"primeiras cidades={city_names}..."
+                f"tempo={result['work_minutes']:.1f} min | primeiras cidades={city_names}..."
             )
         print('Gráfico final salvo em: fitness_evolution.png')
 
