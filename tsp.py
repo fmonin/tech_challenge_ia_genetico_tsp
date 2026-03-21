@@ -5,6 +5,7 @@ from typing import Dict, List, Tuple
 
 import pygame
 
+from cities_data import get_balanced_raw_cities
 from genetic_algorithm import (
     generate_random_population,
     mutate,
@@ -48,144 +49,6 @@ SOFT_TEXT = (205, 210, 220)
 YELLOW = (240, 210, 90)
 
 random.seed(42)
-
-# ------------------------------
-# Base de cidades reais aproximadas
-# ------------------------------
-# Cada tupla tem:
-# grupo original, nome da cidade, latitude, longitude, demanda e prioridade.
-# O grupo original foi mantido só como metadado para referência.
-RAW_CITIES = [
-    (1, 'São Paulo', -23.55, -46.63, 18, 'critica'),
-    (1, 'Guarulhos', -23.45, -46.53, 12, 'regular'),
-    (1, 'Osasco', -23.53, -46.79, 10, 'regular'),
-    (1, 'Barueri', -23.51, -46.88, 9, 'regular'),
-    (1, 'Carapicuíba', -23.52, -46.84, 8, 'regular'),
-    (1, 'Jandira', -23.53, -46.90, 7, 'regular'),
-    (1, 'Itapevi', -23.55, -46.93, 8, 'regular'),
-    (1, 'Cotia', -23.60, -46.92, 12, 'critica'),
-    (1, 'Taboão da Serra', -23.62, -46.79, 9, 'regular'),
-    (1, 'Embu das Artes', -23.65, -46.85, 8, 'regular'),
-    (1, 'Itapecerica da Serra', -23.72, -46.85, 11, 'critica'),
-    (1, 'Santana de Parnaíba', -23.44, -46.92, 8, 'regular'),
-    (1, 'Cajamar', -23.36, -46.88, 9, 'regular'),
-    (1, 'Franco da Rocha', -23.32, -46.73, 10, 'regular'),
-    (1, 'Caieiras', -23.36, -46.74, 7, 'regular'),
-    (1, 'Francisco Morato', -23.28, -46.74, 8, 'regular'),
-    (1, 'Mairiporã', -23.32, -46.59, 8, 'regular'),
-    (1, 'Diadema', -23.69, -46.62, 10, 'regular'),
-    (1, 'São Caetano do Sul', -23.62, -46.55, 9, 'regular'),
-    (1, 'Santo André', -23.66, -46.53, 11, 'critica'),
-    (2, 'São Bernardo do Campo', -23.69, -46.56, 14, 'critica'),
-    (2, 'Mauá', -23.67, -46.46, 10, 'regular'),
-    (2, 'Ribeirão Pires', -23.71, -46.41, 8, 'regular'),
-    (2, 'Rio Grande da Serra', -23.74, -46.40, 7, 'regular'),
-    (2, 'Suzano', -23.54, -46.31, 11, 'regular'),
-    (2, 'Poá', -23.53, -46.35, 7, 'regular'),
-    (2, 'Ferraz de Vasconcelos', -23.54, -46.37, 8, 'regular'),
-    (2, 'Itaquaquecetuba', -23.49, -46.35, 10, 'regular'),
-    (2, 'Arujá', -23.40, -46.32, 9, 'regular'),
-    (2, 'Santa Isabel', -23.31, -46.22, 8, 'regular'),
-    (2, 'Mogi das Cruzes', -23.52, -46.19, 13, 'critica'),
-    (2, 'Biritiba-Mirim', -23.57, -46.04, 7, 'regular'),
-    (2, 'Salesópolis', -23.53, -45.85, 7, 'regular'),
-    (2, 'Guararema', -23.42, -46.04, 8, 'regular'),
-    (2, 'Jacareí', -23.30, -45.97, 12, 'regular'),
-    (2, 'São José dos Campos', -23.19, -45.88, 15, 'critica'),
-    (2, 'Caçapava', -23.10, -45.71, 8, 'regular'),
-    (2, 'Taubaté', -23.03, -45.56, 10, 'regular'),
-    (2, 'Pindamonhangaba', -22.92, -45.46, 8, 'regular'),
-    (2, 'Tremembé', -22.96, -45.55, 7, 'regular'),
-    (2, 'Guaratinguetá', -22.82, -45.19, 11, 'critica'),
-    (2, 'Aparecida', -22.85, -45.23, 9, 'regular'),
-    (2, 'Lorena', -22.73, -45.12, 9, 'regular'),
-    (2, 'Cruzeiro', -22.58, -44.96, 8, 'regular'),
-    (2, 'Cachoeira Paulista', -22.67, -45.01, 7, 'regular'),
-    (3, 'Campinas', -22.90, -47.06, 17, 'critica'),
-    (3, 'Valinhos', -22.97, -46.99, 9, 'regular'),
-    (3, 'Vinhedo', -23.03, -46.98, 8, 'regular'),
-    (3, 'Louveira', -23.09, -46.95, 7, 'regular'),
-    (3, 'Jundiaí', -23.19, -46.88, 12, 'regular'),
-    (3, 'Várzea Paulista', -23.21, -46.83, 8, 'regular'),
-    (3, 'Campo Limpo Paulista', -23.21, -46.78, 8, 'regular'),
-    (3, 'Jarinu', -23.10, -46.73, 7, 'regular'),
-    (3, 'Atibaia', -23.12, -46.55, 10, 'regular'),
-    (3, 'Bom Jesus dos Perdões', -23.14, -46.46, 6, 'regular'),
-    (3, 'Bragança Paulista', -22.95, -46.54, 9, 'regular'),
-    (3, 'Joanópolis', -22.93, -46.27, 6, 'regular'),
-    (3, 'Piracaia', -23.05, -46.36, 7, 'regular'),
-    (3, 'Nazaré Paulista', -23.18, -46.40, 7, 'regular'),
-    (3, 'Igaratá', -23.20, -46.16, 6, 'regular'),
-    (3, 'Salto', -23.20, -47.29, 8, 'regular'),
-    (3, 'Itu', -23.26, -47.30, 10, 'regular'),
-    (3, 'Sorocaba', -23.50, -47.46, 15, 'critica'),
-    (3, 'Votorantim', -23.54, -47.44, 8, 'regular'),
-    (3, 'Mairinque', -23.55, -47.18, 7, 'regular'),
-    (3, 'São Roque', -23.53, -47.14, 8, 'regular'),
-    (3, 'Alumínio', -23.53, -47.25, 7, 'regular'),
-    (3, 'Araçariguama', -23.44, -47.06, 7, 'regular'),
-    (3, 'Boituva', -23.28, -47.67, 8, 'regular'),
-    (3, 'Porto Feliz', -23.21, -47.52, 7, 'regular'),
-    (3, 'Tietê', -23.11, -47.72, 7, 'regular'),
-    (3, 'Indaiatuba', -23.09, -47.22, 10, 'regular'),
-    (3, 'Hortolândia', -22.85, -47.21, 9, 'regular'),
-    (3, 'Sumaré', -22.82, -47.27, 9, 'regular'),
-    (3, 'Paulínia', -22.76, -47.15, 8, 'regular'),
-    (3, 'Americana', -22.74, -47.33, 8, 'regular'),
-    (3, 'Nova Odessa', -22.78, -47.29, 7, 'regular'),
-    (3, "Santa Bárbara d'Oeste", -22.75, -47.41, 8, 'regular'),
-    (3, 'Limeira', -22.56, -47.40, 10, 'regular'),
-    (3, 'Piracicaba', -22.73, -47.65, 11, 'critica'),
-    (3, 'Rio Claro', -22.41, -47.56, 9, 'regular'),
-    (3, 'Santos', -23.96, -46.33, 14, 'critica'),
-    (3, 'São Vicente', -23.96, -46.39, 8, 'regular'),
-    (3, 'Praia Grande', -24.01, -46.41, 10, 'regular'),
-    (3, 'Cubatão', -23.89, -46.42, 9, 'regular'),
-    (3, 'Guarujá', -23.99, -46.26, 10, 'regular'),
-    (3, 'Bertioga', -23.85, -46.14, 8, 'regular'),
-    (3, 'Mongaguá', -24.10, -46.62, 7, 'regular'),
-    (3, 'Itanhaém', -24.18, -46.79, 8, 'regular'),
-    (3, 'Peruíbe', -24.31, -47.00, 8, 'regular'),
-]
-
-SELECTED_CITY_NAMES = {
-    "São Paulo",
-    "Guarulhos",
-    "Osasco",
-    "Cotia",
-    "Itapecerica da Serra",
-    "Santo André",
-    "Mairiporã",
-    "São Bernardo do Campo",
-    "Suzano",
-    "Arujá",
-    "Mogi das Cruzes",
-    "Jacareí",
-    "São José dos Campos",
-    "Guaratinguetá",
-    "Campinas",
-    "Jundiaí",
-    "Atibaia",
-    "Sorocaba",
-    "Piracicaba",
-    "Santos",
-}
-
-
-def get_balanced_raw_cities() -> List[Tuple[int, str, float, float, int, str]]:
-    """Retorna 20 cidades escolhidas de forma equilibrada e mesclada.
-
-    Critérios usados:
-    - mistura das 3 regiões originais;
-    - combinação de cidades críticas e regulares;
-    - distribuição geográfica mais espalhada para deixar o mapa visualmente melhor;
-    - quantidade pequena o suficiente para a apresentação ficar mais legível.
-    """
-    selected = [city for city in RAW_CITIES if city[1] in SELECTED_CITY_NAMES]
-
-    # Ordena para manter execução determinística e facilitar comparação de resultados.
-    selected.sort(key=lambda item: (item[0], item[1]))
-    return selected
 
 VEHICLES = [
     {
@@ -367,7 +230,9 @@ def evaluate_route_for_vehicle(route: List[Dict], vehicle: Dict, depot: Dict) ->
         penalty += (stop_count - vehicle['max_stops']) * 18.0
 
     priority_penalty = priority_position_penalty(route)
-    operational_component = distance_km * vehicle['operational_cost'] + vehicle['fixed_cost']
+    travel_cost = distance_km * vehicle['operational_cost']
+    fixed_cost = vehicle['fixed_cost']
+    operational_component = travel_cost + fixed_cost
     critical_discount = critical_count * vehicle['critical_bonus']
 
     fitness = distance_km + operational_component + priority_penalty + penalty - critical_discount
@@ -378,6 +243,10 @@ def evaluate_route_for_vehicle(route: List[Dict], vehicle: Dict, depot: Dict) ->
         'demand': total_demand,
         'critical_count': critical_count,
         'priority_penalty': priority_penalty,
+        'travel_cost': travel_cost,
+        'fixed_cost': fixed_cost,
+        'total_cost': operational_component,
+        'critical_discount': critical_discount,
         'penalty': penalty,
         'stop_count': stop_count,
         'work_minutes': work_minutes,
@@ -556,27 +425,140 @@ def route_to_screen_points(route: List[Dict], depot: Dict) -> List[Tuple[int, in
     return [depot['screen_pos']] + [city['screen_pos'] for city in route] + [depot['screen_pos']]
 
 
+def build_generation_totals(route_results: List[Dict]) -> Dict[str, float]:
+    """Consolida as métricas da geração atual para facilitar logs e gráficos."""
+    return {
+        'distance': sum(item['distance_km'] for item in route_results),
+        'demand': sum(item['demand'] for item in route_results),
+        'time': sum(item['work_minutes'] for item in route_results),
+        'cost': sum(item['total_cost'] for item in route_results),
+        'priority': sum(item['priority_penalty'] for item in route_results),
+        'penalty': sum(item['penalty'] for item in route_results),
+        'fitness': sum(item['fitness'] for item in route_results),
+    }
+
+
+def build_dashboard_data(
+    best_global_fitness_history: List[float],
+    vehicle_metric_history: Dict[int, Dict[str, List[float]]],
+    total_metric_history: Dict[str, List[float]],
+) -> Dict:
+    x_values = list(range(1, len(best_global_fitness_history) + 1))
+    fitness_series = [
+        {
+            'label': 'Fitness global',
+            'x': x_values,
+            'values': best_global_fitness_history,
+            'color': (255, 255, 255),
+        }
+    ]
+
+    vehicle_distance_series = []
+    for vehicle in VEHICLES:
+        metric_series = vehicle_metric_history[vehicle['id']]
+        fitness_series.append(
+            {
+                'label': f"{vehicle['label']} - {vehicle['name']}",
+                'x': list(range(1, len(metric_series['fitness']) + 1)),
+                'values': metric_series['fitness'],
+                'color': vehicle['color'],
+            }
+        )
+        vehicle_distance_series.append(
+            {
+                'label': f"{vehicle['label']} - {vehicle['name']}",
+                'x': list(range(1, len(metric_series['distance']) + 1)),
+                'values': metric_series['distance'],
+                'color': vehicle['color'],
+            }
+        )
+
+    totals = {
+        'x': x_values,
+        'distance': total_metric_history['distance'],
+        'demand': total_metric_history['demand'],
+        'time': total_metric_history['time'],
+        'cost': total_metric_history['cost'],
+        'priority': total_metric_history['priority'],
+        'penalty': total_metric_history['penalty'],
+    }
+
+    return {
+        'fitness_series': fitness_series,
+        'totals': totals,
+        'vehicle_distance_series': vehicle_distance_series,
+    }
+
+
+def print_generation_report(generation: int, global_fitness: float, route_results: List[Dict], generation_totals: Dict[str, float]) -> None:
+    """Mostra um relatório mais limpo e agradável no terminal."""
+    header = (
+        f"\nGeração {generation:03d} | Fitness global: {global_fitness:8.2f} | "
+        f"Distância total: {generation_totals['distance']:7.1f} km | "
+        f"Tempo total: {generation_totals['time']:7.1f} min"
+    )
+    print(header)
+    print('=' * len(header))
+    print(
+        f"{'Veículo':<22} {'Cidades':>6} {'Demanda':>8} {'Dist(km)':>10} {'Tempo':>9} "
+        f"{'Custo':>9} {'Priorid.':>10} {'Penalid.':>10} {'Fitness':>10}"
+    )
+    print('-' * 104)
+
+    for result in route_results:
+        vehicle = result['vehicle']
+        vehicle_name = f"{vehicle['label']} - {vehicle['name']}"
+        print(
+            f"{vehicle_name:<22} {len(result['best_route']):>6} {result['demand']:>8} "
+            f"{result['distance_km']:>10.1f} {result['work_minutes']:>9.1f} "
+            f"{result['total_cost']:>9.1f} {result['priority_penalty']:>10.1f} "
+            f"{result['penalty']:>10.1f} {result['fitness']:>10.2f}"
+        )
+
+    print('-' * 104)
+    print(
+        f"{'TOTAL':<22} {sum(len(item['best_route']) for item in route_results):>6} "
+        f"{generation_totals['demand']:>8.0f} {generation_totals['distance']:>10.1f} "
+        f"{generation_totals['time']:>9.1f} {generation_totals['cost']:>9.1f} "
+        f"{generation_totals['priority']:>10.1f} {generation_totals['penalty']:>10.1f} "
+        f"{generation_totals['fitness']:>10.2f}"
+    )
+    print()
+
+
 def main() -> None:
     all_cities, depot = build_city_objects()
     assert len(all_cities) == 20, 'A base ativa precisa ter exatamente 20 cidades.'
 
-    headless = False
-    try:
-        pygame.init()
-        screen = pygame.display.set_mode((WIDTH, HEIGHT))
-        pygame.display.set_caption('VRP com Algoritmo Genético - 20 cidades balanceadas')
-        clock = pygame.time.Clock()
-    except pygame.error as e:
-        print(f"Erro ao inicializar display gráfico: {e}")
-        print("Executando em modo headless (sem interface gráfica)...")
-        headless = True
-        screen = None
-        clock = None
+    pygame.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption('VRP com Algoritmo Genético - 20 cidades balanceadas')
+    clock = pygame.time.Clock()
 
     population = generate_random_population(all_cities, POPULATION_SIZE)
 
     best_global_fitness_history = []
-    vehicle_fitness_history = {vehicle['id']: [] for vehicle in VEHICLES}
+    vehicle_metric_history = {
+        vehicle['id']: {
+            'fitness': [],
+            'distance': [],
+            'demand': [],
+            'time': [],
+            'cost': [],
+            'priority': [],
+            'penalty': [],
+        }
+        for vehicle in VEHICLES
+    }
+    total_metric_history = {
+        'distance': [],
+        'demand': [],
+        'time': [],
+        'cost': [],
+        'priority': [],
+        'penalty': [],
+        'fitness': [],
+    }
 
     running = True
     paused = False
@@ -584,121 +566,92 @@ def main() -> None:
     final_results = None
 
     print('Execução iniciada...')
-    if not headless:
-        print('Controles: Q = sair | P = pausar/continuar')
+    print('Controles: Q = sair | P = pausar/continuar')
     print('-' * 110)
 
     while running and generation < N_GENERATIONS:
-        if not headless:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:
                     running = False
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        running = False
-                    elif event.key == pygame.K_p:
-                        paused = not paused
+                elif event.key == pygame.K_p:
+                    paused = not paused
 
-            if paused:
-                pygame.display.flip()
-                clock.tick(FPS)
-                continue
+        if paused:
+            pygame.display.flip()
+            clock.tick(FPS)
+            continue
 
         generation += 1
-        if not headless:
-            screen.fill(BACKGROUND)
-            draw_map_background(screen, depot)
+        screen.fill(BACKGROUND)
+        draw_map_background(screen, depot)
 
         population, global_fitness, merged_results, _, testing_results = evolve_global_population(population, depot)
         final_results = merged_results
         best_global_fitness_history.append(global_fitness)
 
+        generation_totals = build_generation_totals(merged_results)
+        total_metric_history['distance'].append(generation_totals['distance'])
+        total_metric_history['demand'].append(generation_totals['demand'])
+        total_metric_history['time'].append(generation_totals['time'])
+        total_metric_history['cost'].append(generation_totals['cost'])
+        total_metric_history['priority'].append(generation_totals['priority'])
+        total_metric_history['penalty'].append(generation_totals['penalty'])
+        total_metric_history['fitness'].append(generation_totals['fitness'])
+
         for result in merged_results:
             vehicle_id = result['vehicle']['id']
-            vehicle_fitness_history[vehicle_id].append(result['fitness'])
+            vehicle_metric_history[vehicle_id]['fitness'].append(result['fitness'])
+            vehicle_metric_history[vehicle_id]['distance'].append(result['distance_km'])
+            vehicle_metric_history[vehicle_id]['demand'].append(result['demand'])
+            vehicle_metric_history[vehicle_id]['time'].append(result['work_minutes'])
+            vehicle_metric_history[vehicle_id]['cost'].append(result['total_cost'])
+            vehicle_metric_history[vehicle_id]['priority'].append(result['priority_penalty'])
+            vehicle_metric_history[vehicle_id]['penalty'].append(result['penalty'])
 
-        if not headless:
-            for result in testing_results:
-                test_points = route_to_screen_points(result['best_route'], depot)
-                draw_paths(screen, test_points, GRAY_ROUTE, width=2, close_path=False)
+        for result in testing_results:
+            test_points = route_to_screen_points(result['best_route'], depot)
+            draw_paths(screen, test_points, GRAY_ROUTE, width=2, close_path=False)
 
-            for result in merged_results:
-                best_points = route_to_screen_points(result['best_route'], depot)
-                draw_paths(screen, best_points, result['vehicle']['color'], width=4, close_path=False)
-
-            draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=True)
-
-            draw_text(screen, f'Geração: {generation}/{N_GENERATIONS}', WHITE, (RIGHT_PANEL_X, 20), font_size=22, bold=True)
-            draw_text(screen, f'Fitness global: {global_fitness:.2f}', WHITE, (RIGHT_PANEL_X, 52), font_size=18)
-            draw_text(screen, f'Mutação: {MUTATION_PROBABILITY:.2f}', SOFT_TEXT, (RIGHT_PANEL_X, 78), font_size=16)
-
-            draw_vehicle_legend(screen, VEHICLES, (RIGHT_PANEL_X, 110))
-            draw_route_summary(screen, merged_results, (RIGHT_PANEL_X, 275))
-
-            plot_x = list(range(1, len(best_global_fitness_history) + 1))
-            plot_series = [
-                {
-                    'label': 'Fitness global',
-                    'values': best_global_fitness_history,
-                    'color': (255, 255, 255),
-                }
-            ]
-
-            for vehicle in VEHICLES:
-                plot_series.append(
-                    {
-                        'label': f"{vehicle['label']} - {vehicle['name']}",
-                        'values': vehicle_fitness_history[vehicle['id']],
-                        'color': vehicle['color'],
-                    }
-                )
-
-            draw_plot(
-                screen,
-                plot_x,
-                plot_series,
-                x_label='Geração',
-                y_label='Fitness',
-                position=(RIGHT_PANEL_X, 470),
-            )
-
-        print(f'Geração {generation:03d} | Fitness global = {global_fitness:10.2f}')
         for result in merged_results:
-            vehicle = result['vehicle']
-            print(
-                f"  {vehicle['label']} ({vehicle['name']}) | cidades={len(result['best_route'])} | "
-                f"demanda={result['demand']} | distância={result['distance_km']:.1f} km | "
-                f"tempo={result['work_minutes']:.1f} min | penalidade={result['penalty']:.1f} | "
-                f"fitness={result['fitness']:.2f}"
-            )
-        print('-' * 110)
+            best_points = route_to_screen_points(result['best_route'], depot)
+            draw_paths(screen, best_points, result['vehicle']['color'], width=4, close_path=False)
 
-        if not headless:
-            pygame.display.flip()
-            clock.tick(FPS)
+        draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=False)
+
+        draw_text(screen, f'Geração: {generation}/{N_GENERATIONS}', WHITE, (RIGHT_PANEL_X, 20), font_size=22, bold=True)
+        draw_text(screen, f'Fitness global: {global_fitness:.2f}', WHITE, (RIGHT_PANEL_X, 52), font_size=18)
+        draw_text(screen, f'Mutação: {MUTATION_PROBABILITY:.2f}', SOFT_TEXT, (RIGHT_PANEL_X, 78), font_size=16)
+
+        draw_vehicle_legend(screen, VEHICLES, (RIGHT_PANEL_X, 110))
+        draw_route_summary(screen, merged_results, (RIGHT_PANEL_X, 275))
+
+        dashboard_data = build_dashboard_data(
+            best_global_fitness_history,
+            vehicle_metric_history,
+            total_metric_history,
+        )
+
+        draw_plot(
+            screen,
+            dashboard_data,
+            position=(RIGHT_PANEL_X, 470),
+        )
+
+        print_generation_report(generation, global_fitness, merged_results, generation_totals)
+
+        pygame.display.flip()
+        clock.tick(FPS)
 
     if best_global_fitness_history:
-        final_series = [
-            {
-                'label': 'Fitness global',
-                'x': list(range(1, len(best_global_fitness_history) + 1)),
-                'values': best_global_fitness_history,
-                'color': (255, 255, 255),
-            }
-        ]
-
-        for vehicle in VEHICLES:
-            final_series.append(
-                {
-                    'label': f"{vehicle['label']} - {vehicle['name']}",
-                    'x': list(range(1, len(vehicle_fitness_history[vehicle['id']]) + 1)),
-                    'values': vehicle_fitness_history[vehicle['id']],
-                    'color': vehicle['color'],
-                }
-            )
-
-        save_fitness_chart(final_series, output_path='fitness_evolution.png')
-        print('Gráfico final salvo em: fitness_evolution.png')
+        dashboard_data = build_dashboard_data(
+            best_global_fitness_history,
+            vehicle_metric_history,
+            total_metric_history,
+        )
+        save_fitness_chart(dashboard_data, output_path='fitness_evolution.png')
 
     if final_results:
         print('\nResumo final da melhor solução encontrada nessa execução:')
@@ -708,11 +661,13 @@ def main() -> None:
             print(
                 f"{vehicle['label']} - {vehicle['name']} | cidades={len(result['best_route'])} | "
                 f"distância={result['distance_km']:.1f} km | demanda={result['demand']} | "
-                f"tempo={result['work_minutes']:.1f} min | primeiras cidades={city_names}..."
+                f"tempo={result['work_minutes']:.1f} min | custo={result['total_cost']:.1f} | "
+                f"prioridade={result['priority_penalty']:.1f} | penalidade={result['penalty']:.1f} | "
+                f"primeiras cidades={city_names}..."
             )
+        print('Gráfico final salvo em: fitness_evolution.png')
 
-    if not headless:
-        pygame.quit()
+    pygame.quit()
     sys.exit()
 
 

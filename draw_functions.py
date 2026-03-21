@@ -7,52 +7,70 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from typing import Dict, List, Tuple
 
 
-def draw_plot(
-    screen: pygame.Surface,
-    x: list,
-    series: list,
-    x_label: str = 'Geração',
-    y_label: str = 'Fitness',
-    position: Tuple[int, int] = (0, 0)
-) -> None:
-    """Desenha um gráfico dentro da tela.
+def _rgb_to_mpl(rgb: Tuple[int, int, int]):
+    return (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
 
-    Agora ele aceita várias linhas.
-    Cada item de series precisa ter:
-    - label
-    - values
-    - color
-    """
-    fig, ax = plt.subplots(figsize=(5.1, 3.2), dpi=100)
 
-    for item in series:
-        # O matplotlib usa cor de 0 a 1, então aqui eu converto do padrão RGB.
-        rgb = item['color']
-        color = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
-
-        ax.plot(
-            x,
-            item['values'],
-            label=item['label'],
-            linewidth=2.0,
-            color=color
-        )
-
-    ax.set_ylabel(y_label)
-    ax.set_xlabel(x_label)
-    ax.grid(alpha=0.3)
-    ax.legend(fontsize=8, loc='best')
-    fig.patch.set_facecolor('white')
-    ax.set_facecolor('#f8f8f8')
-    ax.tick_params(axis='x', labelsize=8)
-    ax.tick_params(axis='y', labelsize=8)
-    plt.tight_layout()
-
+def _render_figure_to_surface(fig: plt.Figure) -> pygame.Surface:
     canvas = FigureCanvasAgg(fig)
     canvas.draw()
     raw_data = canvas.buffer_rgba()
     size = canvas.get_width_height()
-    surf = pygame.image.frombuffer(raw_data, size, 'RGBA')
+    surf = pygame.image.frombuffer(raw_data, size, "RGBA")
+    return surf
+
+
+def draw_plot(
+    screen: pygame.Surface,
+    dashboard_data: Dict,
+    position: Tuple[int, int] = (0, 0)
+) -> None:
+    """Desenha um painel com vários gráficos resumindo a evolução da solução."""
+    fig, axes = plt.subplots(2, 2, figsize=(5.2, 4.0), dpi=100)
+    fig.patch.set_facecolor('#ffffff')
+
+    ax1, ax2, ax3, ax4 = axes.flat
+
+    fitness_series = dashboard_data['fitness_series']
+    for item in fitness_series:
+        ax1.plot(item['x'], item['values'], label=item['label'], linewidth=2.0, color=_rgb_to_mpl(item['color']))
+    ax1.set_title('Fitness')
+    ax1.set_xlabel('Geração')
+    ax1.set_ylabel('Valor')
+    ax1.grid(alpha=0.25)
+    ax1.legend(fontsize=6, loc='best')
+
+    totals = dashboard_data['totals']
+    ax2.plot(totals['x'], totals['distance'], label='Distância total (km)', linewidth=1.8)
+    ax2.plot(totals['x'], totals['demand'], label='Demanda total', linewidth=1.8)
+    ax2.plot(totals['x'], totals['time'], label='Tempo total (min)', linewidth=1.8)
+    ax2.set_title('Carga operacional')
+    ax2.set_xlabel('Geração')
+    ax2.grid(alpha=0.25)
+    ax2.legend(fontsize=6, loc='best')
+
+    ax3.plot(totals['x'], totals['cost'], label='Custo total', linewidth=1.8)
+    ax3.plot(totals['x'], totals['priority'], label='Prioridade', linewidth=1.8)
+    ax3.plot(totals['x'], totals['penalty'], label='Penalidade', linewidth=1.8)
+    ax3.set_title('Custos e restrições')
+    ax3.set_xlabel('Geração')
+    ax3.grid(alpha=0.25)
+    ax3.legend(fontsize=6, loc='best')
+
+    for vehicle_data in dashboard_data['vehicle_distance_series']:
+        ax4.plot(vehicle_data['x'], vehicle_data['values'], label=vehicle_data['label'], linewidth=1.8, color=_rgb_to_mpl(vehicle_data['color']))
+    ax4.set_title('Distância por veículo')
+    ax4.set_xlabel('Geração')
+    ax4.grid(alpha=0.25)
+    ax4.legend(fontsize=6, loc='best')
+
+    for ax in axes.flat:
+        ax.set_facecolor('#f7f8fa')
+        ax.tick_params(axis='x', labelsize=7)
+        ax.tick_params(axis='y', labelsize=7)
+
+    plt.tight_layout(pad=1.0)
+    surf = _render_figure_to_surface(fig)
     screen.blit(surf, position)
     plt.close(fig)
 
@@ -79,10 +97,7 @@ def draw_cities(
     node_radius: int = 5,
     show_labels: bool = False
 ) -> None:
-    """Desenha as cidades no mapa.
-
-    Quando show_labels=True, mostra também a criticidade de cada ponto.
-    """
+    """Desenha as cidades no mapa."""
     for city in cities:
         position = city['screen_pos']
         pygame.draw.circle(screen, rgb_color, position, node_radius)
@@ -92,15 +107,7 @@ def draw_cities(
             pygame.draw.circle(screen, (220, 60, 60), position, node_radius + 2, 1)
 
         if show_labels:
-            priority_text = 'Crítica' if city['priority'] == 'critica' else 'Regular'
-            label = f"{city['name']} - {priority_text}"
-            label_x = position[0] + 8
-            label_y = position[1] - 10
-
-            # sombra simples para melhorar a leitura no mapa
-            draw_text(screen, label, (20, 20, 20), (label_x + 1, label_y + 1), font_size=11, bold=False)
-            label_color = (255, 210, 210) if city['priority'] == 'critica' else (230, 230, 230)
-            draw_text(screen, label, label_color, (label_x, label_y), font_size=11, bold=False)
+            draw_text(screen, city['name'], (230, 230, 230), (position[0] + 6, position[1] - 8), font_size=11)
 
 
 def draw_paths(
@@ -140,9 +147,9 @@ def draw_vehicle_legend(screen: pygame.Surface, vehicles: List[Dict], position: 
 
 
 def draw_route_summary(screen: pygame.Surface, route_results: List[Dict], position: Tuple[int, int]) -> None:
-    """Mostra um resumo das 3 rotas."""
+    """Mostra um resumo das rotas."""
     x, y = position
-    panel_rect = pygame.Rect(x, y, 430, 170)
+    panel_rect = pygame.Rect(x, y, 530, 170)
     pygame.draw.rect(screen, (20, 28, 40), panel_rect, border_radius=8)
     pygame.draw.rect(screen, (80, 120, 180), panel_rect, 1, border_radius=8)
 
@@ -157,31 +164,52 @@ def draw_route_summary(screen: pygame.Surface, route_results: List[Dict], positi
             f"dist: {result['distance_km']:.1f} km | fit: {result['fitness']:.1f}"
         )
         draw_text(screen, info, vehicle['color'], (x + 10, line_y), font_size=14)
-        extra = f"críticas: {result['critical_count']} | penalidade: {result['penalty']:.1f}"
+        extra = (
+            f"tempo: {result['work_minutes']:.1f} min | custo: {result['total_cost']:.1f} | "
+            f"prioridade: {result['priority_penalty']:.1f} | penalidade: {result['penalty']:.1f}"
+        )
         draw_text(screen, extra, (215, 215, 215), (x + 28, line_y + 18), font_size=13)
 
 
-def save_fitness_chart(series: list, output_path: str = 'fitness_evolution.png') -> None:
-    """Salva o gráfico final com várias linhas."""
-    fig, ax = plt.subplots(figsize=(11, 5), dpi=120)
+def save_fitness_chart(dashboard_data: Dict, output_path: str = 'fitness_evolution.png') -> None:
+    """Salva um dashboard com fitness e métricas operacionais."""
+    fig, axes = plt.subplots(2, 2, figsize=(13, 8), dpi=120)
+    fig.patch.set_facecolor('#ffffff')
+    ax1, ax2, ax3, ax4 = axes.flat
 
-    for item in series:
-        rgb = item['color']
-        color = (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+    for item in dashboard_data['fitness_series']:
+        ax1.plot(item['x'], item['values'], label=item['label'], linewidth=2.2, color=_rgb_to_mpl(item['color']))
+    ax1.set_title('Evolução do fitness global e por veículo')
+    ax1.set_xlabel('Geração')
+    ax1.set_ylabel('Fitness')
+    ax1.grid(alpha=0.3)
+    ax1.legend()
 
-        ax.plot(
-            item['x'],
-            item['values'],
-            label=item['label'],
-            linewidth=2.2,
-            color=color
-        )
+    totals = dashboard_data['totals']
+    ax2.plot(totals['x'], totals['distance'], label='Distância total (km)', linewidth=2.0)
+    ax2.plot(totals['x'], totals['demand'], label='Demanda total', linewidth=2.0)
+    ax2.plot(totals['x'], totals['time'], label='Tempo total (min)', linewidth=2.0)
+    ax2.set_title('Distância, demanda e tempo')
+    ax2.set_xlabel('Geração')
+    ax2.grid(alpha=0.3)
+    ax2.legend()
 
-    ax.set_title('Evolução do fitness por veículo e fitness global')
-    ax.set_xlabel('Geração')
-    ax.set_ylabel('Fitness')
-    ax.grid(alpha=0.3)
-    ax.legend()
+    ax3.plot(totals['x'], totals['cost'], label='Custo total', linewidth=2.0)
+    ax3.plot(totals['x'], totals['priority'], label='Prioridade', linewidth=2.0)
+    ax3.plot(totals['x'], totals['penalty'], label='Penalidade', linewidth=2.0)
+    ax3.set_title('Custo, prioridade e penalidade')
+    ax3.set_xlabel('Geração')
+    ax3.grid(alpha=0.3)
+    ax3.legend()
+
+    for vehicle_data in dashboard_data['vehicle_distance_series']:
+        ax4.plot(vehicle_data['x'], vehicle_data['values'], label=vehicle_data['label'], linewidth=2.0, color=_rgb_to_mpl(vehicle_data['color']))
+    ax4.set_title('Distância por veículo')
+    ax4.set_xlabel('Geração')
+    ax4.set_ylabel('km')
+    ax4.grid(alpha=0.3)
+    ax4.legend()
+
     plt.tight_layout()
     fig.savefig(output_path)
     plt.close(fig)
