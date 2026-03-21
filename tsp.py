@@ -560,10 +560,18 @@ def main() -> None:
     all_cities, depot = build_city_objects()
     assert len(all_cities) == 20, 'A base ativa precisa ter exatamente 20 cidades.'
 
-    pygame.init()
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
-    pygame.display.set_caption('VRP com Algoritmo Genético - 20 cidades balanceadas')
-    clock = pygame.time.Clock()
+    headless = False
+    try:
+        pygame.init()
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption('VRP com Algoritmo Genético - 20 cidades balanceadas')
+        clock = pygame.time.Clock()
+    except pygame.error as e:
+        print(f"Erro ao inicializar display gráfico: {e}")
+        print("Executando em modo headless (sem interface gráfica)...")
+        headless = True
+        screen = None
+        clock = None
 
     population = generate_random_population(all_cities, POPULATION_SIZE)
 
@@ -576,27 +584,30 @@ def main() -> None:
     final_results = None
 
     print('Execução iniciada...')
-    print('Controles: Q = sair | P = pausar/continuar')
+    if not headless:
+        print('Controles: Q = sair | P = pausar/continuar')
     print('-' * 110)
 
     while running and generation < N_GENERATIONS:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_q:
+        if not headless:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
                     running = False
-                elif event.key == pygame.K_p:
-                    paused = not paused
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_q:
+                        running = False
+                    elif event.key == pygame.K_p:
+                        paused = not paused
 
-        if paused:
-            pygame.display.flip()
-            clock.tick(FPS)
-            continue
+            if paused:
+                pygame.display.flip()
+                clock.tick(FPS)
+                continue
 
         generation += 1
-        screen.fill(BACKGROUND)
-        draw_map_background(screen, depot)
+        if not headless:
+            screen.fill(BACKGROUND)
+            draw_map_background(screen, depot)
 
         population, global_fitness, merged_results, _, testing_results = evolve_global_population(population, depot)
         final_results = merged_results
@@ -606,49 +617,50 @@ def main() -> None:
             vehicle_id = result['vehicle']['id']
             vehicle_fitness_history[vehicle_id].append(result['fitness'])
 
-        for result in testing_results:
-            test_points = route_to_screen_points(result['best_route'], depot)
-            draw_paths(screen, test_points, GRAY_ROUTE, width=2, close_path=False)
+        if not headless:
+            for result in testing_results:
+                test_points = route_to_screen_points(result['best_route'], depot)
+                draw_paths(screen, test_points, GRAY_ROUTE, width=2, close_path=False)
 
-        for result in merged_results:
-            best_points = route_to_screen_points(result['best_route'], depot)
-            draw_paths(screen, best_points, result['vehicle']['color'], width=4, close_path=False)
+            for result in merged_results:
+                best_points = route_to_screen_points(result['best_route'], depot)
+                draw_paths(screen, best_points, result['vehicle']['color'], width=4, close_path=False)
 
-        draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=False)
+            draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=True)
 
-        draw_text(screen, f'Geração: {generation}/{N_GENERATIONS}', WHITE, (RIGHT_PANEL_X, 20), font_size=22, bold=True)
-        draw_text(screen, f'Fitness global: {global_fitness:.2f}', WHITE, (RIGHT_PANEL_X, 52), font_size=18)
-        draw_text(screen, f'Mutação: {MUTATION_PROBABILITY:.2f}', SOFT_TEXT, (RIGHT_PANEL_X, 78), font_size=16)
+            draw_text(screen, f'Geração: {generation}/{N_GENERATIONS}', WHITE, (RIGHT_PANEL_X, 20), font_size=22, bold=True)
+            draw_text(screen, f'Fitness global: {global_fitness:.2f}', WHITE, (RIGHT_PANEL_X, 52), font_size=18)
+            draw_text(screen, f'Mutação: {MUTATION_PROBABILITY:.2f}', SOFT_TEXT, (RIGHT_PANEL_X, 78), font_size=16)
 
-        draw_vehicle_legend(screen, VEHICLES, (RIGHT_PANEL_X, 110))
-        draw_route_summary(screen, merged_results, (RIGHT_PANEL_X, 275))
+            draw_vehicle_legend(screen, VEHICLES, (RIGHT_PANEL_X, 110))
+            draw_route_summary(screen, merged_results, (RIGHT_PANEL_X, 275))
 
-        plot_x = list(range(1, len(best_global_fitness_history) + 1))
-        plot_series = [
-            {
-                'label': 'Fitness global',
-                'values': best_global_fitness_history,
-                'color': (255, 255, 255),
-            }
-        ]
-
-        for vehicle in VEHICLES:
-            plot_series.append(
+            plot_x = list(range(1, len(best_global_fitness_history) + 1))
+            plot_series = [
                 {
-                    'label': f"{vehicle['label']} - {vehicle['name']}",
-                    'values': vehicle_fitness_history[vehicle['id']],
-                    'color': vehicle['color'],
+                    'label': 'Fitness global',
+                    'values': best_global_fitness_history,
+                    'color': (255, 255, 255),
                 }
-            )
+            ]
 
-        draw_plot(
-            screen,
-            plot_x,
-            plot_series,
-            x_label='Geração',
-            y_label='Fitness',
-            position=(RIGHT_PANEL_X, 470),
-        )
+            for vehicle in VEHICLES:
+                plot_series.append(
+                    {
+                        'label': f"{vehicle['label']} - {vehicle['name']}",
+                        'values': vehicle_fitness_history[vehicle['id']],
+                        'color': vehicle['color'],
+                    }
+                )
+
+            draw_plot(
+                screen,
+                plot_x,
+                plot_series,
+                x_label='Geração',
+                y_label='Fitness',
+                position=(RIGHT_PANEL_X, 470),
+            )
 
         print(f'Geração {generation:03d} | Fitness global = {global_fitness:10.2f}')
         for result in merged_results:
@@ -661,8 +673,9 @@ def main() -> None:
             )
         print('-' * 110)
 
-        pygame.display.flip()
-        clock.tick(FPS)
+        if not headless:
+            pygame.display.flip()
+            clock.tick(FPS)
 
     if best_global_fitness_history:
         final_series = [
@@ -685,6 +698,7 @@ def main() -> None:
             )
 
         save_fitness_chart(final_series, output_path='fitness_evolution.png')
+        print('Gráfico final salvo em: fitness_evolution.png')
 
     if final_results:
         print('\nResumo final da melhor solução encontrada nessa execução:')
@@ -696,9 +710,9 @@ def main() -> None:
                 f"distância={result['distance_km']:.1f} km | demanda={result['demand']} | "
                 f"tempo={result['work_minutes']:.1f} min | primeiras cidades={city_names}..."
             )
-        print('Gráfico final salvo em: fitness_evolution.png')
 
-    pygame.quit()
+    if not headless:
+        pygame.quit()
     sys.exit()
 
 

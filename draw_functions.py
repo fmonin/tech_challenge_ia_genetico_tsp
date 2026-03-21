@@ -79,7 +79,10 @@ def draw_cities(
     node_radius: int = 5,
     show_labels: bool = False
 ) -> None:
-    """Desenha as cidades no mapa."""
+    """Desenha as cidades no mapa.
+
+    Quando show_labels=True, mostra também a criticidade de cada ponto.
+    """
     for city in cities:
         position = city['screen_pos']
         pygame.draw.circle(screen, rgb_color, position, node_radius)
@@ -89,7 +92,15 @@ def draw_cities(
             pygame.draw.circle(screen, (220, 60, 60), position, node_radius + 2, 1)
 
         if show_labels:
-            draw_text(screen, city['name'], (230, 230, 230), (position[0] + 6, position[1] - 8), font_size=11)
+            priority_text = 'Crítica' if city['priority'] == 'critica' else 'Regular'
+            label = f"{city['name']} - {priority_text}"
+            label_x = position[0] + 8
+            label_y = position[1] - 10
+
+            # sombra simples para melhorar a leitura no mapa
+            draw_text(screen, label, (20, 20, 20), (label_x + 1, label_y + 1), font_size=11, bold=False)
+            label_color = (255, 210, 210) if city['priority'] == 'critica' else (230, 230, 230)
+            draw_text(screen, label, label_color, (label_x, label_y), font_size=11, bold=False)
 
 
 def draw_paths(
