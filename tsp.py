@@ -619,7 +619,7 @@ def main() -> None:
             best_points = route_to_screen_points(result['best_route'], depot)
             draw_paths(screen, best_points, result['vehicle']['color'], width=4, close_path=False)
 
-        draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=False)
+        draw_cities(screen, all_cities, YELLOW, NODE_RADIUS, show_labels=True)
 
         draw_text(screen, f'Geração: {generation}/{N_GENERATIONS}', WHITE, (RIGHT_PANEL_X, 20), font_size=22, bold=True)
         draw_text(screen, f'Fitness global: {global_fitness:.2f}', WHITE, (RIGHT_PANEL_X, 52), font_size=18)

@@ -107,7 +107,14 @@ def draw_cities(
             pygame.draw.circle(screen, (220, 60, 60), position, node_radius + 2, 1)
 
         if show_labels:
-            draw_text(screen, city['name'], (230, 230, 230), (position[0] + 6, position[1] - 8), font_size=11)
+            # Criar rótulo com nome e indicador de criticidade
+            label = city['name']
+            if city['priority'] == 'critica':
+                label += ' [C]'
+            
+            # Definir cor baseada na criticidade
+            label_color = (255, 120, 120) if city['priority'] == 'critica' else (230, 230, 230)
+            draw_text(screen, label, label_color, (position[0] + 6, position[1] - 8), font_size=10)
 
 
 def draw_paths(
