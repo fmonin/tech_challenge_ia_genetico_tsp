@@ -1,12 +1,29 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Dec 27 13:33:42 2023
+BENCHMARK: benchmark_att48.py
+==============================
+Dataset ATT48 do TSP clássico para validação e comparação.
 
-@author: SérgioPolimante
+CONTEXTO:
+O dataset ATT48 é referência em pesquisa de AG para TSP.
+- 48 cidades em grid bidimensional
+- Solução ótima conhecida: ~10,628 unidades
+- Usado para validação de novos algoritmos
+
+USO:
+Este arquivo não é crítico para o projeto da FIAP.
+Foi mantido para:
+- Testes de validação com benchmark conhecido
+- Comparação com literatura acadêmica
+- Prova de conceito com dataset pequeno
+
+A maioria das execuções usa cities_data.py (20 cidades reais de SP)
+ao invés de att_48_cities_locations.
+
+Python por Sergio Polimante (2023)
+Fonte original: https://people.sc.fsu.edu/~jburkardt/datasets/tsp/tsp.html
 """
 
-## problem source: https://people.sc.fsu.edu/~jburkardt/datasets/tsp/tsp.html
-
+# Coordenadas das 48 cidades do ATT dataset
 att_48_cities_locations = [(6734, 1453),
 (2233 , 10),
 (5530, 1424),

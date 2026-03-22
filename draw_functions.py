@@ -1,3 +1,26 @@
+"""
+MÓDULO: draw_functions.py
+===========================
+Renderização gráfica via Pygame + Matplotlib para visualizations em tempo real.
+
+RESPONSABILIDADES:
+1. Desenho do mapa de cidades (Pygame)
+2. Desenho de rotas (linhas coloridas por veículo)
+3. Desenho de painel de informações (legenda, resumo)
+4. Geração de gráficos de evolução (Matplotlib)
+
+USO:
+- draw_cities(), draw_paths(), draw_text() → Pygame em tempo real
+- draw_plot() → Matplotlib embutido em canvas Pygame
+- save_fitness_chart() → Salva gráfico como PNG
+
+PADRÃO DE CORES:
+- RGB tuples (0-255 range)
+- Cada veículo tem cor única (hardcoded em tsp.py VEHICLES)
+- Rotas em teste: cinza, Melhor rota: cor do veículo
+- Cidades críticas: anel vermelho ao redor
+"""
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -8,7 +31,36 @@ from typing import Dict, List, Tuple
 
 
 def _rgb_to_mpl(rgb: Tuple[int, int, int]):
+    """Converte RGB 0-255 para matplotlib 0.0-1.0 (float)."""
     return (rgb[0] / 255.0, rgb[1] / 255.0, rgb[2] / 255.0)
+
+
+def _render_figure_to_surface(fig: plt.Figure) -> pygame.Surface:
+    """Renderiza matplotlib figure como Pygame surfacepara exibição. """
+    canvas = FigureCanvasAgg(fig)
+    canvas.draw()
+    raw_data = canvas.buffer_rgba()
+    size = canvas.get_width_height()
+    surf = pygame.image.frombuffer(raw_data, size, "RGBA")
+    return surf
+
+
+def draw_plot(
+    screen: pygame.Surface,
+    dashboard_data: Dict,
+    position: Tuple[int, int] = (0, 0)
+) -> None:
+    """
+    Desenha painel de gráficos em tempo real durante evolução.
+    
+    4 subgráficos:
+    1. Fitness (global vs por veículo)
+    2. Distância, demanda, tempo
+    3. Custos e penalidades
+    4. Distância por veículo
+    
+    Renderiza em meia resolução para não travar o FPS.
+    """
 
 
 def _render_figure_to_surface(fig: plt.Figure) -> pygame.Surface:

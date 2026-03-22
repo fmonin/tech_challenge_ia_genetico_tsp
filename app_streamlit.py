@@ -1,3 +1,51 @@
+"""
+APLICAÇÃO: app_streamlit.py
+============================
+Interface web interativa para análise de rotas VRP com IA.
+
+ARQUITETURA:
+============
+┌─────────────────────────────────────────────────┐
+│  Streamlit (este arquivo)                      │
+│  - UI/UX renderização                          │
+│  - State management (session_state)            │
+├─────────────────────────────────────────────────┤
+│  RouteLLMService (llm_ui_service.py)           │
+│  - Orquestração GA + LLM                       │
+│  - Cache de resultados                         │
+├─────────────────────────────────────────────────┤
+│  Algoritmo Genético (tsp.py)                   │
+│  Integração LLM (llm_integration.py)           │
+└─────────────────────────────────────────────────┘
+
+FLUXO DE INTERAÇÃO:
+===================
+1. Usuário abre app no navegador
+2. Streamlit executa este script de cima para baixo
+3. Página renderizada com:
+   - Formulário de pergunta
+   - Botão para preparar contexto
+   - Histórico de respostas
+4. Usuário digita pergunta e clica
+5. Streamlit chama handle_user_prompt()
+6. RouteLLMService carrega GA + LLM
+7. Resposta exibida na tela
+8. Streamlit re-renderiza tudo (RERUN)
+
+CACHE CRUCIAL:
+==============
+@st.cache_resource: Instância RouteLLMService persiste entre reruns
+@st.session_state: Histórico de perguntas/respostas persiste na sessão
+Sem isso, cada interação re-executaria o GA (muito lento!)
+
+ESTADO DA SESSÃO:
+================
+st.session_state.history: Lista de {question, answer}
+st.session_state.summary: Resumo de rotas (opcional)
+st.session_state.routes_ready: Booleano (GA já foi executado?)
+st.session_state.warmup_error: String (erro ao preparar contexto)
+"""
+
 from __future__ import annotations
 
 import traceback
@@ -19,11 +67,32 @@ st.set_page_config(
 @st.cache_resource
 # Esse cache mantém a instância do serviço viva entre interações da sessão.
 def get_service() -> RouteLLMService:
+    """
+    CACHE DE RECURSO: Cria serviço UMA VEZ, reutiliza sempre.
+    
+    Sem este cache:
+    - Cada rerun criaria nova instância RouteLLMService
+    - Sem cache de rotas, AG rodaria a cada pergunta (30+ segundos)
+    
+    Com este cache:
+    - Primeira execução: GA roda (~2-3 seg) e é cacheado
+    - Próximas perguntas: respondem em <1 segundo
+    
+    Cache dura enquanto abrir a aba do navegador.
+    Fechando e reabrindo, limpa o cache.
+    """
     return RouteLLMService()
 
 
 # Como estamos em Streamlit, centralizar o estado ajuda a manter a conversa.
 def init_session_state() -> None:
+    """
+    Inicializa variáveis de estado da sessão.
+    
+    session_state: dicionário que persiste entre reruns
+    Se tentar acessar variable que não existe, erro
+    Então inicializa tudo aqui na primeira execução
+    """
     if "history" not in st.session_state:
         st.session_state.history = []
     if "summary" not in st.session_state:
@@ -35,6 +104,16 @@ def init_session_state() -> None:
 
 
 def warmup_routes(service: RouteLLMService) -> None:
+    """
+    PRÉ-CARREGA rotas (executa AG) de forma explícita.
+    
+    Benefício:
+    - Usuário vê spinner "Preparando contexto das rotas..."
+    - Mensagem clara de que algo está acontecendo
+    - Sem isso, formulário aparece congelado por 2-3 segundos
+    
+    Melhor UX: dar feedback sobre o que está acontecendo
+    """
     try:
         with st.spinner("Preparando contexto das rotas..."):
             service.load_route_results()
@@ -46,6 +125,7 @@ def warmup_routes(service: RouteLLMService) -> None:
 
 
 def render_summary(service: RouteLLMService) -> None:
+    """Renderiza painel de sumário de rotas com métricas principais."""
     st.subheader("Resumo das rotas")
 
     if st.button("Carregar resumo", use_container_width=True):
@@ -66,6 +146,14 @@ def render_summary(service: RouteLLMService) -> None:
 
 # Trata a pergunta digitada pelo usuário.
 def handle_user_prompt(service: RouteLLMService, prompt: str) -> None:
+    """
+    Processa pergunta do usuário e adiciona resposta ao histórico.
+    
+    Error handling:
+    - Se LLM falhar, armazena mensagem de erro
+    - Histórico mantém mesmo que haja erro
+    - Usuário vê o que deu errado (melhor que desaparecer)
+    """
     try:
         with st.spinner("Consultando a LLM..."):
             answer = service.ask_question(prompt)
@@ -77,6 +165,19 @@ def handle_user_prompt(service: RouteLLMService, prompt: str) -> None:
 
 # Bloco principal da tela.
 def main() -> None:
+    """
+    FUNÇÃO PRINCIPAL: Renderiza interface completa.
+    
+    Orden de renderização (importante!):
+    1. Título e instruções
+    2. Botão para preparar contexto
+    3. Mensagens de status (pronto/ erro/ noch nicht)
+    4. Formulário de perguntas
+    5. Histórico de respostas
+    6. Sumário de rotas
+    
+    Cada interação (submit, click) causa RERUN dessa função.
+    """
     init_session_state()
     service = get_service()
 

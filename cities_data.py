@@ -1,3 +1,31 @@
+"""
+MÓDULO: cities_data.py
+=======================
+BASE DE DADOS de cidades para otimização de rotas.
+
+ESTRUTURA DE CADA CIDADE:
+(id_grupo, nome, latitude, longitude, demanda_kg, criticidade)
+
+CRITICIDADE (Prioridade):
+- "critica":  Cliente VIP, SLA apertado, deve atender cedo (earliness bonus)
+- "regular": Cliente comum, sem restrições especiais
+- "depot":   Centro de distribuição (ponto de origem e retorno)
+
+DATASET:
+- 87 cidades reais da região metropolitana de São Paulo
+- Agrupadas em 3 regiões: ABC, Vale do Paraíba, Interior
+- 20 selecionadas por balanceamento (5-6 cidades críticas)
+
+SELEÇÃO PARA USO:
+O AG sempre trabalha com exatamente 20 cidades balanceadas
+extraídas deste dataset completo.
+
+Este é um bom tamanho:
+- Pequeno o bastante para GA convergir rápido
+- Grande o bastante para ter complexidade real
+- Acima de 20 cidades, tempo de GA dispara exponencialmente
+"""
+
 from typing import List, Tuple
 
 # Cada tupla segue o formato:
@@ -120,7 +148,30 @@ SELECTED_CITY_NAMES = {
 
 
 def get_balanced_raw_cities() -> List[Tuple[int, str, float, float, int, str]]:
-    """Retorna 20 cidades de forma equilibrada e mesclada."""
+    """
+    Retorna 20 cidades BALANCEADAS para otimização com AG.
+    
+    BALANCEAMENTO:
+    ===============
+    - Exatamente 20 cidades (tamanho padrão do projeto)
+    - Distribuição geográfica por região (não concentra em uma)
+    - Mix de criticidade: ~30% crítica, ~70% regular
+    - Variação de demanda para ter "dificuldade" real
+    
+    CIDADES CRÍTICAS SELECIONADAS:
+    - São Paulo (grupo 1) - Hub central
+    - São Bernardo (grupo 2) - Polo industrial
+    - Mogi das Cruzes (grupo 2) - Ponto norte
+    - Campinas (grupo 3) - Interior importante
+    - Piracicaba (grupo 3) - Mais distante
+    - Santos (grupo 3) - Litoral/porta
+    - Sorocaba (grupo 3) - Oeste
+    
+    OBJETIVO DO BALANCEAMENTO:
+    Criar benchmark consistente e realista.
+    Sem balanceamento, tamanho da população de cidades variaria,
+    mudando radicalmente dificuldade e tempo do AG.
+    """
     selected = [city for city in RAW_CITIES if city[1] in SELECTED_CITY_NAMES]
     selected.sort(key=lambda item: (item[0], item[1]))
     return selected

@@ -1,19 +1,41 @@
+"""
+MÓDULO: route_context_loader.py
+================================
+Conecta o algoritmo genético (tsp.py) com a interface web (Streamlit).
+
+Responsabilidade Única: Adaptar dados do GA para LLM/UI sem modificar tsp.py
+
+PROBLEMAS RESOLVIDO:
+- tsp.py importa pygame (requer display gráfico, não funciona em web)
+- tsp.py tem main() que abre janela Pygame
+- Precisamos rodar GA SEM interface gráfica, para Streamlit
+
+SOLUÇÃO:
+- Import tardio do tsp (lazy import)
+- Reutiliza funções públicas do tsp
+- Executa AG sem pygame.display
+- Retorna dados no mesmo formato que tsp usa
+"""
+
 from __future__ import annotations
 
 from typing import Dict, List, Tuple
 
 
-# Esse módulo tem uma única missão: montar o route_results
-# reaproveitando a lógica já existente do projeto, sem mexer no tsp.py.
-# A ideia é usar as funções públicas do próprio módulo tsp.
-
-
 def _import_tsp_module():
-    """Importa o módulo tsp de forma tardia.
-
-    Eu deixei a importação dentro da função para evitar que a tela Streamlit
-    tente importar tudo logo na inicialização sem necessidade.
-    Isso também facilita mostrar mensagens de erro mais amigáveis.
+    """
+    Importa tsp.py de forma TARDIA (lazy import).
+    
+    Por quê TARDIA? 
+    - Se importássemos no topo, pygame.init() seria chamado na inicialização
+    - pygame.init() falha em ambiente sem display (servidores, CI/CD)
+    - Lazy import permite:
+      * Imports bem-sucedidos até chamar essa função
+      * Erros claros quando tentar usar GA em ambiente sem display
+    
+    Benefício adicional:
+    - Streamlit pode importar este módulo sem inicializar pygame
+    - pytest/testes funcionam mesmo sem X11
     """
     import tsp  # noqa: WPS433 - import tardio proposital
 
@@ -25,16 +47,58 @@ def build_route_results(
     generations: int | None = None,
     seed: int = 42,
 ) -> List[Dict]:
-    """Executa a lógica de otimização sem abrir a interface pygame.
-
-    A estratégia aqui é simples:
-    1. reaproveitar build_city_objects do tsp.py;
-    2. reaproveitar generate_random_population do projeto já existente;
-    3. reaproveitar evolve_global_population por algumas gerações;
-    4. devolver o mesmo formato de dados que a LLM já espera.
-
-    O retorno dessa função é uma lista de dicionários no mesmo formato do
-    final_results do tsp.py, compatível com answer_route_question(...).
+    """
+    FUNÇÃO CORE: Executa Algoritmo Genético SEM interface gráfica.
+    
+    Esta é a ponte entre Streamlit e o GA implementado em tsp.py.
+    
+    FLUXO TÉCNICO:
+    ===============
+    1. Importa tsp de forma tardia
+    2. Define seed para reprodutibilidade
+    3. Carrega 20 cidades balanceadas do dataset
+    4. Cria população inicial aleatória
+    5. Evolui por N gerações
+    6. Retorna melhor solução encontrada
+    
+    POPULAÇÃO E GERAÇÕES:
+    =====================
+    - Se population_size=None: usa padrão do tsp.py (90)
+    - Se generations=None: usa padrão do tsp.py (180)
+    - Para web: usar population_size=8, generations=10 para resposta rápida
+    
+    RETORNO - Lista de dicts com formato:
+    =====================================
+    [
+      {
+        'vehicle': {...dados do veículo...},
+        'best_route': [cidades em ordem],
+        'distance_km': 250.5,
+        'demand': 130,
+        'work_minutes': 480.0,
+        'fitness': 800.0,
+        'priority_penalty': -50.0,
+        'penalty': 0.0,
+        'total_cost': 250.0,
+      },
+      ... (um dict por veículo)
+    ]
+    
+    Este formato é exatamente compatível com:
+    - llm_integration.answer_route_question()
+    - draw_functions (para visualização)
+    - Relatórios em geral
+    
+    CUSTO COMPUTACIONAL:
+    ====================
+    - 8 população × 10 gerações = ~2-3 segundos
+    - 30 população × 50 gerações = ~30-40 segundos
+    - 90 população × 180 gerações = ~5-10 minutos (padrão do tsp.py)
+    
+    DETERMINISMO:
+    ==============
+    Com mesmo seed, sempre gera mesma solução.
+    Importante para testes e reprodutibilidade acadêmica.
     """
     tsp = _import_tsp_module()
 
