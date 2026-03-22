@@ -1,17 +1,18 @@
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 from typing import Dict, List
 
 from llm_integration import (
+    HISTORY_FILE,
     answer_route_question,
     generate_daily_report,
     generate_driver_instructions,
     generate_process_improvements,
     generate_weekly_report,
 )
-
-from route_context_loader import build_route_results, summarize_route_results
 
 
 """
@@ -36,7 +37,7 @@ app_streamlit.py
        ↓
 RouteLLMService (este arquivo)
        ↓
-build_route_results() ← GA de tsp.py
+llm_reports_history.json ← saída persistida do tsp.py
 answer_route_question() ← LLM de llm_integration.py
 """
 
@@ -137,9 +138,41 @@ class RouteLLMService:
         self.seed = seed
         self._route_results: List[Dict] | None = None
 
+    def _load_history_route_results(self) -> List[Dict]:
+        """
+        Carrega o contexto de rotas da ÚLTIMA execução salva no histórico.
+
+        Esta rota não executa o TSP. Apenas lê dados persistidos em JSON.
+        """
+        history_path = Path(__file__).resolve().parent / HISTORY_FILE
+
+        try:
+            with open(history_path, "r", encoding="utf-8") as file:
+                history = json.load(file)
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                "Histórico não encontrado. Execute tsp.py para gerar llm_reports_history.json."
+            ) from exc
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Histórico inválido: JSON corrompido.") from exc
+
+        if not isinstance(history, list) or not history:
+            raise RuntimeError("Histórico vazio. Execute tsp.py para registrar uma execução.")
+
+        latest_entry = history[-1]
+        route_results = latest_entry.get("route_results")
+
+        if not route_results:
+            raise RuntimeError(
+                "A última execução do histórico não possui detalhes por veículo. "
+                "Execute tsp.py novamente para salvar route_results completos."
+            )
+
+        return route_results
+
     def load_route_results(self, force_reload: bool = False) -> List[Dict]:
         """
-        Carrega/executa o AG para otimizar rotas.
+        Carrega contexto de rotas a partir do histórico persistido.
         
         CACHE INTELIGENTE:
         - Primeira chamada: executa AG completo
@@ -154,12 +187,12 @@ class RouteLLMService:
         pois a página é re-executada a cada interação.
         """
         if self._route_results is None or force_reload:
-            self._route_results = build_route_results(
-                population_size=self.population_size,
-                generations=self.generations,
-                seed=self.seed,
-            )
+            self._route_results = self._load_history_route_results()
         return self._route_results
+
+    def refresh_route_results(self) -> List[Dict]:
+        """Força novo cálculo das rotas, descartando o cache em memória."""
+        return self.load_route_results(force_reload=True)
 
     def get_summary(self) -> Dict:
         """
@@ -177,7 +210,13 @@ class RouteLLMService:
         }
         """
         route_results = self.load_route_results()
-        return summarize_route_results(route_results)
+        return {
+            "vehicles_used": len(route_results),
+            "total_stops": sum(len(item["best_route"]) for item in route_results),
+            "total_distance_km": sum(item["distance_km"] for item in route_results),
+            "total_demand": sum(item["demand"] for item in route_results),
+            "total_time_min": sum(item["work_minutes"] for item in route_results),
+        }
 
     def ask_question(self, question: str) -> str:
         """

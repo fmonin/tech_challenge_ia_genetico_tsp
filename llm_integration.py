@@ -792,6 +792,30 @@ def call_llm(prompt: str) -> str:
 # Aqui eu guardo o resultado da execucao no historico.
 def append_history_entry(route_results: List[Dict]) -> None:
     totals = _build_totals(route_results)
+    serialized_routes = []
+
+    for result in route_results:
+        serialized_routes.append(
+            {
+                "vehicle": result["vehicle"],
+                "best_route": [
+                    {
+                        "name": city["name"],
+                        "priority": city["priority"],
+                        "demand": city["demand"],
+                    }
+                    for city in result["best_route"]
+                ],
+                "distance_km": result["distance_km"],
+                "demand": result["demand"],
+                "work_minutes": result["work_minutes"],
+                "fitness": result["fitness"],
+                "priority_penalty": result["priority_penalty"],
+                "penalty": result["penalty"],
+                "total_cost": result["total_cost"],
+            }
+        )
+
     entry = {
         "created_at": datetime.now().isoformat(),
         "distance": round(totals["distance"], 2),
@@ -802,6 +826,7 @@ def append_history_entry(route_results: List[Dict]) -> None:
         "penalty": round(totals["penalty"], 2),
         "fitness": round(totals["fitness"], 2),
         "critical_cities": totals["critical_cities"],
+        "route_results": serialized_routes,
     }
 
     try:

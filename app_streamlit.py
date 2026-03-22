@@ -48,6 +48,7 @@ st.session_state.warmup_error: String (erro ao preparar contexto)
 
 from __future__ import annotations
 
+from datetime import datetime
 import traceback
 
 import streamlit as st
@@ -101,11 +102,13 @@ def init_session_state() -> None:
         st.session_state.routes_ready = False
     if "warmup_error" not in st.session_state:
         st.session_state.warmup_error = None
+    if "context_updated_at" not in st.session_state:
+        st.session_state.context_updated_at = None
 
 
-def warmup_routes(service: RouteLLMService) -> None:
+def warmup_routes(service: RouteLLMService, force_reload: bool = False) -> None:
     """
-    PRÉ-CARREGA rotas (executa AG) de forma explícita.
+    Carrega contexto salvo da última execução persistida no histórico.
     
     Benefício:
     - Usuário vê spinner "Preparando contexto das rotas..."
@@ -115,10 +118,16 @@ def warmup_routes(service: RouteLLMService) -> None:
     Melhor UX: dar feedback sobre o que está acontecendo
     """
     try:
-        with st.spinner("Preparando contexto das rotas..."):
-            service.load_route_results()
+        with st.spinner("Carregando contexto salvo..."):
+            if force_reload:
+                service.refresh_route_results()
+            else:
+                service.load_route_results()
         st.session_state.routes_ready = True
         st.session_state.warmup_error = None
+        st.session_state.context_updated_at = datetime.now()
+        if force_reload:
+            st.session_state.summary = None
     except Exception as exc:  # noqa: BLE001
         st.session_state.routes_ready = False
         st.session_state.warmup_error = str(exc)
@@ -184,15 +193,18 @@ def main() -> None:
     st.title("Consulta de Rotas com IA")
     st.caption("Selecione uma pergunta sugerida ou escreva uma pergunta personalizada.")
     st.caption(
-        "Na primeira execução, o sistema precisa montar as rotas. "
-        "Use o botão abaixo para preparar o contexto antes de perguntar."
+        "O sistema prepara e atualiza o contexto automaticamente antes de responder."
     )
 
-    if st.button("Preparar contexto de rotas", use_container_width=True):
+    # Preparação automática na primeira carga da sessão.
+    if not st.session_state.routes_ready and not st.session_state.warmup_error:
         warmup_routes(service)
 
     if st.session_state.routes_ready:
         st.success("Contexto carregado. As próximas perguntas respondem mais rápido.")
+        if st.session_state.context_updated_at:
+            updated_at = st.session_state.context_updated_at.strftime("%d/%m/%Y %H:%M:%S")
+            st.caption(f"Contexto atualizado em: {updated_at}")
     elif st.session_state.warmup_error:
         st.error(f"Falha ao preparar contexto: {st.session_state.warmup_error}")
     else:
@@ -220,10 +232,10 @@ def main() -> None:
 
     if submitted:
         prompt = custom_question.strip() or selected_question
+        # Recarrega do histórico para sempre usar a última execução registrada pelo TSP.
+        warmup_routes(service, force_reload=True)
         if not st.session_state.routes_ready:
-            warmup_routes(service)
-        if not st.session_state.routes_ready:
-            st.warning("Não foi possível preparar as rotas. Corrija o erro e tente novamente.")
+            st.warning("Não foi possível carregar o contexto salvo. Verifique o histórico e tente novamente.")
             return
         handle_user_prompt(service, prompt)
         st.rerun()

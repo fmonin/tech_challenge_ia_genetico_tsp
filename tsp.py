@@ -943,6 +943,14 @@ def main() -> None:
         pygame.display.flip()
         clock.tick(FPS)
 
+    # Salva exatamente o que está visível na janela ao encerrar a execução.
+    screen_snapshot_path = 'execution_screen.png'
+    try:
+        pygame.image.save(screen, screen_snapshot_path)
+        print(f'Tela final salva em: {screen_snapshot_path}')
+    except pygame.error as exc:
+        print(f'Não foi possível salvar a imagem da tela final: {exc}')
+
     if best_global_fitness_history:
         dashboard_data = build_dashboard_data(
             best_global_fitness_history,
