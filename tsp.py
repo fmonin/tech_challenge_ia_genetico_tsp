@@ -722,8 +722,13 @@ def main() -> None:
 
     if final_results:
         try:
-            question = input('\nDigite uma pergunta sobre as rotas ou pressione Enter para sair: ').strip()
-            if question:
+            while True:
+                question = input('\nDigite uma pergunta sobre as rotas (ou E para sair): ').strip()
+                if question.lower() == 'e':
+                    break
+                if not question:
+                    print('Digite uma pergunta válida ou E para sair.')
+                    continue
                 answer = answer_route_question(final_results, question)
                 print_text_block('RESPOSTA DA LLM', answer)
         except (EOFError, RuntimeError) as e:
