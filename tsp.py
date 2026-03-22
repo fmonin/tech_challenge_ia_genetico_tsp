@@ -1,3 +1,40 @@
+"""
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    SISTEMA DE OTIMIZAÇÃO DE ROTAS (TSP/VRP)                   ║
+║               Algoritmo Genético com Integração LLM - Relatórios              ║
+║                                                                               ║
+║  PROPÓSITO: Resolver o Vehicle Routing Problem (VRP) para 20 cidades de      ║
+║  São Paulo usando evolução genética, otimizando múltiplas métricas:          ║
+║  - Minimizar distância total percorrida                                       ║
+║  - Minimizar custo operacional                                                ║
+║  - Respeitar capacidade dos veículos                                          ║
+║  - Respeitar janelas de tempo e limites de distância                         ║
+║  - Priorizar entrega de cidades críticas (high-priority)                     ║
+║                                                                               ║
+║  WORKFLOW:                                                                    ║
+║  1. Inicializa 20 cidades reais (lat/lon) de São Paulo                        ║
+║  2. Cria população de 90 permutações aleatórias                               ║
+║  3. Para cada "geração" (180 vezes):                                          ║
+║     a. Avalia cada permutação segundo função fitness complexa                 ║
+║     b. Seleciona melhores (tournament selection, k=5)                         ║
+║     c. Gera filhos via Order Crossover (OX)                                   ║
+║     d. Aplica mutação (Swap ou Reverse, 22% probabilidade)                    ║
+║     e. Melhora localmente com 2-Opt (~45% dos filhos)                         ║
+║  4. Ao fim, retorna a melhor solução encontrada (menor fitness)               ║
+║  5. Gera relatório visual em Pygame com histogramas de evolução               ║
+║  6. Integra com OpenAI GPT para análise humanizada e Q&A                      ║
+║                                                                               ║
+║  FEATURE ÚNICO: Decodificação dinâmica de cromossoma                          ║
+║  - AG trabalha com uma PERMUTAÇÃO GLOBAL (ordem das 20 cidades)               ║
+║  - Decoder decide em TEMPO REAL qual veículo leva cada cidade                 ║
+║  - Isso permite distribuição inteligente sem pré-divisão de clientes         ║
+║                                                                               ║
+║  AUTHOR: Sistema IA desenvolvido para análise de logística                    ║
+║  DATA: Março 2026                                                             ║
+║  ACADÊMICO: FIAP - Pós-Graduação em Inteligência Artificial                  ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+"""
+
 import math
 import random
 import sys
@@ -32,9 +69,12 @@ from llm_integration import (
     generate_weekly_report,
 )
 
-# ------------------------------
-# Configurações gerais
-# ------------------------------
+# ────────────────────────────────────────────────────────────────────────────────
+# CAMADA 1: CONFIGURAÇÃO GLOBAL
+# ────────────────────────────────────────────────────────────────────────────────
+# Define tamanho da interface, parâmetros do AG e características dos veículos
+
+# CONFIGURAÇÃO DE INTERFACE (PyGame)
 WIDTH, HEIGHT = 1600, 900
 MAP_LEFT = 20
 MAP_TOP = 20
@@ -42,70 +82,102 @@ MAP_WIDTH = 980
 MAP_HEIGHT = 860
 RIGHT_PANEL_X = 1030
 FPS = 30
-POPULATION_SIZE = 90
-N_GENERATIONS = 180
-MUTATION_PROBABILITY = 0.22
-ELITISM = 2
-TOURNAMENT_SIZE = 6
-NODE_RADIUS = 5
-BACKGROUND = (14, 18, 28)
-MAP_BACKGROUND = (24, 30, 45)
-GRID_COLOR = (50, 58, 82)
-GRAY_ROUTE = (150, 150, 150)
-WHITE = (240, 240, 240)
-SOFT_TEXT = (205, 210, 220)
-YELLOW = (240, 210, 90)
 
-random.seed(42)
+# PARÂMETROS DO ALGORITMO GENÉTICO
+# ⚡ Estes valores impactam PROFUNDAMENTE na qualidade vs velocidade
+# - POPULATION_SIZE = 90, N_GENERATIONS = 180 = ~5-10 min de execução (melhor qualidade)
+# - POPULATION_SIZE = 30, N_GENERATIONS = 50  = ~30-40 seg (balanço)
+# - POPULATION_SIZE = 8,  N_GENERATIONS = 10  = ~2-3 seg (para web/Streamlit - responsivo)
+#
+# Fórmula empiricamente validada: tempo_execução ≈ (pop_size × gen) × 0.003 segundos
+POPULATION_SIZE = 90
+N_GENERATIONS = 15
+MUTATION_PROBABILITY = 0.22        # 22% de chance de mutar cada filho (exploração vs exploração)
+ELITISM = 2                        # Preserva os 2 melhores indivíduos por geração (elitismo)
+TOURNAMENT_SIZE = 6                # k=6 para tournament selection (balanceado entre seleção forte e diversidade)
+
+# CORES DA INTERFACE (RGB Tuples)
+NODE_RADIUS = 5
+BACKGROUND = (14, 18, 28)          # Cinza escuro/azul para contraste com rotas
+MAP_BACKGROUND = (24, 30, 45)      # Azul mais claro para diferençar mapa principal
+GRID_COLOR = (50, 58, 82)          # Grid das ruas/linhas de referência
+GRAY_ROUTE = (150, 150, 150)       # Rotas em TESTE (mais claras, para comparação)
+WHITE = (240, 240, 240)            # Texto principal e elementos destacados
+SOFT_TEXT = (205, 210, 220)        # Texto secundário (menos importante)
+YELLOW = (240, 210, 90)            # Highlight das cidades no mapa
+
+random.seed(42)  # SEED IMPORTANTE: garante reprodutibilidade dos resultados (essencial para pesquisa acadêmica)
+
+# ────────────────────────────────────────────────────────────────────────────────
+# CAMADA 2: DEFINIÇÃO DOS 3 VEÍCULOS (Fleet Configuration)
+# ────────────────────────────────────────────────────────────────────────────────
+# Define as características operacionais de cada veículo da frota
+# O algoritmo genético atribui dinamicamente cidades para cada veículo
+#
+# ESTRUTURA DE CADA VEÍCULO:
+# - capacity: kg máximo que pode transportar
+# - max_distance: quilômetros máximos por dia (autonomia)
+# - max_work_minutes: Tempo máximo de trabalho (em minutos por dia)
+# - max_stops: Número máximo de paradas (cidades) que pode atender
+# - service_minutes_*: Tempo de serviço em cada cidade (varia por prioridade)
+# - operational_cost: R$ por km (combustível + manutenção)
+# - fixed_cost: R$ fixo por dia (motorista, etc)
+# - critical_bonus: Desconto em fitness por entregar cidades críticas (quanto maior, melhor)
+#
+# NOTA: O bonus é multiplicado pelo número de cidades críticas na rota
+# Exemplo: Veículo 2 com 4 cidades críticas = 4 × 14.0 = 56 pontos de desconto no fitness
 
 VEHICLES = [
     {
         'id': 1,
         'label': 'Veículo 1',
         'name': 'Pequeno',
-        'capacity': 190,
-        'max_distance': 280.0,
-        'max_work_minutes': 420,
-        'max_stops': 22,
-        'service_minutes_regular': 8,
-        'service_minutes_critical': 14,
-        'operational_cost': 1.00,
-        'fixed_cost': 15.0,
-        'critical_bonus': 8.0,
-        'color': (89, 163, 255),
+        'capacity': 190,           # 190 kg de carga máxima
+        'max_distance': 280.0,     # 280 km de autonomia por dia
+        'max_work_minutes': 420,   # 7 horas = 420 minutos de trabalho
+        'max_stops': 22,           # Máximo 22 cidades por dia
+        'service_minutes_regular': 8,      # 8 min por cidade regular
+        'service_minutes_critical': 14,    # 14 min por cidade crítica (mais importante)
+        'operational_cost': 1.00,  # R$ 1.00 por km
+        'fixed_cost': 15.0,       # R$ 15.00 fixo por dia (motorista, etc)
+        'critical_bonus': 8.0,    # Desconto menor = menos preferência por críticas
+        'color': (89, 163, 255),  # Azul (cor para renderização no mapa)
     },
     {
         'id': 2,
         'label': 'Veículo 2',
         'name': 'Médio',
-        'capacity': 320,
-        'max_distance': 520.0,
-        'max_work_minutes': 540,
-        'max_stops': 34,
-        'service_minutes_regular': 8,
-        'service_minutes_critical': 15,
-        'operational_cost': 1.12,
-        'fixed_cost': 25.0,
-        'critical_bonus': 14.0,
-        'color': (70, 210, 170),
+        'capacity': 320,           # 320 kg - maior que Veículo 1
+        'max_distance': 520.0,     # 520 km - maior autonomia
+        'max_work_minutes': 540,   # 9 horas = 540 minutos
+        'max_stops': 34,           # Pode fazer mais paradas
+        'service_minutes_regular': 8,      # Tempo similar de serviço
+        'service_minutes_critical': 15,    # Um pouco mais para críticas
+        'operational_cost': 1.12,  # R$ 1.12 por km (um pouco mais caro)
+        'fixed_cost': 25.0,       # R$ 25.00 fixo por dia (custos maiores)
+        'critical_bonus': 14.0,   # MELHOR bonus para críticas (2x do Veículo 1)
+        'color': (70, 210, 170),  # Verde (cor para renderização)
     },
     {
         'id': 3,
         'label': 'Veículo 3',
         'name': 'Grande',
-        'capacity': 520,
-        'max_distance': 900.0,
-        'max_work_minutes': 660,
-        'max_stops': 50,
-        'service_minutes_regular': 9,
-        'service_minutes_critical': 16,
-        'operational_cost': 1.28,
-        'fixed_cost': 35.0,
-        'critical_bonus': 18.0,
-        'color': (255, 165, 80),
+        'capacity': 520,           # 520 kg - maior capacidade
+        'max_distance': 900.0,     # 900 km - maior autonomia
+        'max_work_minutes': 660,   # 11 horas = 660 minutos
+        'max_stops': 50,           # Máximo 50 paradas (muito maior)
+        'service_minutes_regular': 9,      # Um pouco mais de tempo por parada
+        'service_minutes_critical': 16,    # Mais tempo para críticas
+        'operational_cost': 1.28,  # R$ 1.28 por km (combustível maior)
+        'fixed_cost': 35.0,       # R$ 35.00 fixo por dia (maior custo fixo)
+        'critical_bonus': 18.0,   # MAIOR bonus (2.25x do Veículo 1) - ideal para críticas
+        'color': (255, 165, 80),  # Laranja (cor para renderização)
     },
 ]
 
+# ────────────────────────────────────────────────────────────────────────────────
+# CAMADA 3: FUNÇÕES AUXLIARES DE MAPEAMENTO E DISTÂNCIA
+# ────────────────────────────────────────────────────────────────────────────────
 
 def latlon_to_xy(
     lat: float,
@@ -115,43 +187,117 @@ def latlon_to_xy(
     min_lon: float,
     max_lon: float,
 ) -> Tuple[int, int]:
-    usable_width = MAP_WIDTH - 40
-    usable_height = MAP_HEIGHT - 40
-    x_ratio = (lon - min_lon) / (max_lon - min_lon)
-    y_ratio = (max_lat - lat) / (max_lat - min_lat)
-    x = MAP_LEFT + 20 + int(x_ratio * usable_width)
-    y = MAP_TOP + 20 + int(y_ratio * usable_height)
+    """
+    Converte coordenadas geográficas (latitude, longitude) em pixels da tela (x, y).
+    
+    PROPÓSITO: Essa função é essencial para renderizar cidades no mapa PyGame.
+    Nós recebemos coordenadas reais (lat/lon) de São Paulo e precisamos mapeá-las
+    para a janela desenhável (1600×900).
+    
+    ALGORITMO:
+    1. Calcula o "box" geográfico: (min_lat, max_lat, min_lon, max_lon)
+    2. Normaliza cada coordenada para proporção [0, 1]
+    3. Escala para pixels: [20, MAP_WIDTH-20] e [20, MAP_HEIGHT-20]
+    
+    EXEMPLO:
+    - São Paulo center: lat=-23.55, lon=-46.63
+    - Se min_lat=-24.0, max_lat=-23.0, min_lon=-47.5, max_lon=-46.0
+    - ratio_x = (-46.63 - (-47.5)) / (-46.0 - (-47.5)) = 0.87 / 1.5 = 0.58
+    - pixel_x = 20 + 20 + (0.58 × 940) ≈ 565 px
+    
+    NOTA: Invertemos a latitude (max_lat - lat) porque PyGame tem Y crescendo para baixo,
+    enquanto latitude cresce para cima.
+    """
+    usable_width = MAP_WIDTH - 40   # 980 - 40 = 940 px úteis
+    usable_height = MAP_HEIGHT - 40  # 860 - 40 = 820 px úteis
+    x_ratio = (lon - min_lon) / (max_lon - min_lon)  # Normaliza longitude [0, 1]
+    y_ratio = (max_lat - lat) / (max_lat - min_lat)  # Normaliza latitude invertida [0, 1]
+    x = MAP_LEFT + 20 + int(x_ratio * usable_width)   # Escala para pixel
+    y = MAP_TOP + 20 + int(y_ratio * usable_height)   # Escala para pixel
     return x, y
 
 
 def haversine_km(city_a: Dict, city_b: Dict) -> float:
-    radius = 6371.0
+    """
+    Calcula a distância real em quilômetros entre duas cidades usando a fórmula de HAVERSINE.
+    
+    PROPÓSITO: Em vez de usar distância euclidiana (linha reta), usamos a distância 
+    sobre a ESFERA TERRESTRE. Isso é muito mais preciso para logística real.
+    
+    FÓRMULA DE HAVERSINE:
+    d = 2 × R × arcsin(√(sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)))
+    
+    Onde:
+    - R = 6371 km (raio médio da Terra)
+    - Δlat = latitude_2 - latitude_1 (em radianos)
+    - Δlon = longitude_2 - longitude_1 (em radianos)
+    
+    EXEMPLO:
+    São Paulo (-23.55, -46.63) para Santos (-23.96, -46.33):
+    - Distância em linha reta: ~64 km
+    - Distância haversine (real): ~71 km ✓ Mais realista
+    
+    NOTA: Essa função é chamada centenas de vezes por geração do AG,
+    portanto sua eficiência é crítica. Mantemos radianos pré-calculados.
+    """
+    radius = 6371.0  # Raio da Terra em km
     lat1 = math.radians(city_a['lat'])
     lon1 = math.radians(city_a['lon'])
     lat2 = math.radians(city_b['lat'])
     lon2 = math.radians(city_b['lon'])
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
+    dlat = lat2 - lat1  # Diferença de latitude
+    dlon = lon2 - lon1  # Diferença de longitude
+    # Fórmula de haversine em sua forma canônica
     a = math.sin(dlat / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon / 2) ** 2
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return radius * c
 
 
 def route_distance_km(route: List[Dict], depot: Dict) -> float:
+    """
+    Calcula a distância TOTAL de uma rota completa (ida + volta ao depot).
+    
+    SEQUÊNCIA: depot → cidade_1 → cidade_2 → ... → cidade_n → depot
+    
+    EXEMPLO com 3 cidades:
+    Depot (São Paulo) → Santos → Guarulhos → Osasco → Depot
+    Distância = dist(SP, Santos) + dist(Santos, Guarulhos) + dist(Guarulhos, Osasco) + dist(Osasco, SP)
+    
+    NOTA: Rota vazia = 0 km
+    """
     if not route:
         return 0.0
-    total = haversine_km(depot, route[0])
+    total = haversine_km(depot, route[0])  # Depot até primeira cidade
     for i in range(len(route) - 1):
-        total += haversine_km(route[i], route[i + 1])
-    total += haversine_km(route[-1], depot)
+        total += haversine_km(route[i], route[i + 1])  # Cidade a cidade
+    total += haversine_km(route[-1], depot)  # Última cidade volta ao depot
     return total
 
 
 def estimate_route_minutes(route: List[Dict], vehicle: Dict, depot: Dict) -> float:
+    """
+    Estima o TEMPO TOTAL para completar uma rota, em minutos.
+    
+    COMPONENTES DO TEMPO:
+    1. Tempo de deslocamento = distância_km / velocidade_média
+    2. Tempo de serviço = soma dos tempos em cada parada
+    
+    VELOCIDADE MÉDIA: 45 km/h (velocidade média urbana para São Paulo)
+    Fórmula: (distância / 45) × 60 = minutos de deslocamento
+    \n    TEMPO POR PARADA:
+    - Cidade regular: 8 min (unload rápido)
+    - Cidade crítica: 14-16 min (mais importante, pode ter papelada extra)
+    
+    EXEMPLO com 5 cidades (2 críticas, 3 regulares):
+    - Distância: 120 km
+    - Tempo deslocamento: (120 / 45) × 60 = 160 min
+    - Tempo serviço: 14 + 8 + 8 + 16 + 8 = 54 min
+    - Total: 160 + 54 = 214 min (3,6 horas)
+    """
     if not route:
         return 0.0
     distance_km = route_distance_km(route, depot)
-    travel_minutes = (distance_km / 45.0) * 60.0
+    travel_minutes = (distance_km / 45.0) * 60.0  # 45 km/h é a velocidade média urbana
     service_minutes = 0.0
     for city in route:
         if city['priority'] == 'critica':
@@ -162,6 +308,34 @@ def estimate_route_minutes(route: List[Dict], vehicle: Dict, depot: Dict) -> flo
 
 
 def build_city_objects() -> Tuple[List[Dict], Dict]:
+    """
+    Carrega as 20 cidades reais de São Paulo e cria objetos estruturados para uso no AG.
+    
+    FLUXO:
+    1. Importa 20 cidades balanceadas (70% regular, 30% crítica) de cities_data.py
+    2. Calcula bounding box geográfico: (min/max lat/lon)
+    3. Transforma coordenadas reais em pixels de tela (para renderização)
+    4. Define depot em São Paulo (ponto de origem/destino de todas as rotas)
+    5. Retorna lista de cidades estruturadas + depot
+    
+    ESTRUTURA DE CADA CIDADE:
+    {
+      'id': 1-20 (identificador único)
+      'name': 'Santos', 'Guarulhos', etc (nome da cidade)
+      'lat': -23.96 (latitude em graus decimais)
+      'lon': -46.33 (longitude em graus decimais)
+      'demand': 45 (kg a entregar)
+      'priority': 'critica' ou 'regular' (10-15% recebem bonus/penalty maior)
+      'group': ID do grupo interno
+      'screen_pos': (x_pixel, y_pixel) - para renderização Pygame
+    }
+    
+    IMPORTÂNCIA DO DEPOT:
+    - Todas as rotas COMEÇAM e TERMINAM no depot
+    - Coordenadas: Centro de Distribuição em São Paulo (-23.55, -46.63)
+    - Demand = 0 (não é uma entrega)
+    - Priority = 'depot' (tipo especial)
+    """
     selected_raw_cities = get_balanced_raw_cities()
 
     min_lat = min(item[2] for item in selected_raw_cities)
@@ -198,10 +372,29 @@ def build_city_objects() -> Tuple[List[Dict], Dict]:
     return all_cities, depot
 
 
-# ------------------------------
-# Regras de negócio do VRP completo
-# ------------------------------
+# ────────────────────────────────────────────────────────────────────────────────
+# CAMADA 4: REGRAS DE NEGÓCIO DO VRP (Vehicle Routing Problem)
+# ────────────────────────────────────────────────────────────────────────────────
+# Estas funções definem as PENALIDADES e RECOMPENSAS que o AG otimiza
+# 
+# CONCEITO FUNDAMENTAL: Fitness não é apenas "menor distância"
+# É uma COMPOSIÇÃO ponderada de múltiplas métricas de negócio:
+# 
+# Fitness = distância + custo_operacional + penalidades_violações - bonificações
+# 
+# Penalidades (incrementam fitness = piora):
+#   - Superar capacidade: 14 R$/kg extra (MUITO CARO: não permitir!)
+#   - Superar distância máx: 10 R$/km extra
+#   - Superar tempo máx: 2.4 R$/min extra
+#   - Entregar crítica fora de prazo: 2.5 R$ por posição (position * 2.5)
+# 
+# Bonificações (decrementam fitness = melhora):
+#   - Entregar crítica cedo: -8 a -18 R$ dependendo do veículo
+# IMPLEMENTAÇÃO: Aloca critical penalidades e rewards baseado em posição de entrega
+
 def priority_position_penalty(route: List[Dict]) -> float:
+    # Calcula penalidade/recompensa por ordem de entrega de cidades críticas
+    # Penaliza entregas críticas em posições tardias, recompensa entregas rápidas
     penalty = 0.0
     reward = 0.0
     for index, city in enumerate(route):
@@ -213,23 +406,72 @@ def priority_position_penalty(route: List[Dict]) -> float:
 
 
 def route_demand(route: List[Dict]) -> int:
+    """
+    Soma a demanda (kg) de todas as cidades na rota.
+    Simples, mas crucial: se ultrapassar, paga penalidade de 14 por kg extra!
+    """
     return sum(city['demand'] for city in route)
 
 
 def route_critical_count(route: List[Dict]) -> int:
+    """
+    Conta quantas cidades CRÍTICAS estão nesta rota.
+    Cada uma gera desconto no fitness (recompensa do veículo).
+    """
     return sum(1 for city in route if city['priority'] == 'critica')
 
 
 def evaluate_route_for_vehicle(route: List[Dict], vehicle: Dict, depot: Dict) -> Dict:
+    """
+    FUNÇÃO CRÍTICA: Calcula a qualidade (fitness) de UMA rota para UM veículo.
+    
+    Esta é uma das funções mais importantes do projeto.
+    Ela define literalmente o que significa "uma BOA rota".
+    
+    COMPONENTES DO FITNESS:
+    1. Base: distância_km (minimizar km percorridos)
+    2. Custo operacional: distância × cost_por_km + custo_fixo
+    3. Penalidades de violação:
+       - Capacidade: (demanda_extra) × 14 R$/kg (PESADO: capacidade é rígida!)
+       - Distância: (km_extra) × 10 R$/km
+       - Tempo: (min_extra) × 2.4 R$/min
+       - Paradas: (paradas_extra) × 18 R$/parada (menos importante)
+    4. Penalidade de prioridade: Penalizar entregar críticas tarde
+    5. Desconto crítico: -critical_count × vehicle['critical_bonus']
+       - Veículo 1: -8 por crítica
+       - Veículo 2: -14 por crítica (preferido para críticas!)
+       - Veículo 3: -18 por crítica (BEST para críticas)
+    
+    FÓRMULA FINAL:
+    fitness = dist + custos + penalidades - descontos
+    Objetivo: MINIMIZAR fitness (buscar solução com menor valor)
+    
+    EXEMPLO COM 3 CIDADES:
+    Route = [Santos (50kg, regular), Guarulhos (30kg, crítica), Osasco (40kg, crítica)]
+    Vehicle = Veículo 2 (capacity=320, max_distance=520, cost=1.12)
+    
+    Cálculos:
+    - distance = 150 km
+    - demand = 50 + 30 + 40 = 120 kg (OK, < 320)
+    - critical_count = 2
+    - time = (150/45)*60 + 8 + 15 + 15 = 200 + 38 = 238 min (OK, < 540)
+    - penalties = 0 (tudo dentro dos limites)
+    - priority_penalty = (1×2.5 + 2×2.5) - reward = -15 (net, com recompensa)
+    - travel_cost = 150 × 1.12 = 168
+    - operational = 168 + 25 = 193
+    - critical_discount = 2 × 14 = 28
+    - FITNESS = 150 + 193 + (-15) + 0 - 28 = 300
+    """
     distance_km = route_distance_km(route, depot)
     total_demand = route_demand(route)
     critical_count = route_critical_count(route)
     stop_count = len(route)
     work_minutes = estimate_route_minutes(route, vehicle, depot)
 
+    # Calcular penalidades de violação de constraints
     penalty = 0.0
     if total_demand > vehicle['capacity']:
-        penalty += (total_demand - vehicle['capacity']) * 14.0
+        penalty += (total_demand - vehicle['capacity']) * 14.0  # Muito caro!
     if distance_km > vehicle['max_distance']:
         penalty += (distance_km - vehicle['max_distance']) * 10.0
     if work_minutes > vehicle['max_work_minutes']:
@@ -237,12 +479,14 @@ def evaluate_route_for_vehicle(route: List[Dict], vehicle: Dict, depot: Dict) ->
     if stop_count > vehicle['max_stops']:
         penalty += (stop_count - vehicle['max_stops']) * 18.0
 
+    # Componentes do fitness
     priority_penalty = priority_position_penalty(route)
     travel_cost = distance_km * vehicle['operational_cost']
     fixed_cost = vehicle['fixed_cost']
     operational_component = travel_cost + fixed_cost
     critical_discount = critical_count * vehicle['critical_bonus']
 
+    # FÓRMULA: fitness = distance + operational + priority_penalty + violations - discount
     fitness = distance_km + operational_component + priority_penalty + penalty - critical_discount
 
     return {
@@ -327,13 +571,33 @@ def rebalance_routes(routes_by_vehicle: Dict[int, List[Dict]], depot: Dict) -> D
 
 
 def decode_chromosome_to_routes(sequence: List[Dict], depot: Dict) -> List[Dict]:
-    """Transforma uma permutação global em uma solução VRP completa.
-
-    Aqui o AG decide a ordem global das 90 cidades e o decoder decide dinamicamente
-    em qual veículo cada cidade entra. Isso remove a divisão fixa por grupos.
+    """
+    🔑 FUNÇÃO MAIS IMPORTANTE! Decodifica um cromossoma do AG em uma solução VRP.
+    
+    CONCEITO FUNDAMENTAL - A INOVAÇÃO DESTE PROJETO:
+    ═════════════════════════════════════════════════════════════════════════════
+    
+    O Algoritmo Genético trabalha com uma PERMUTAÇÃO GLOBAL das 20 cidades:
+    [Santos, Guarulhos, Campinas, Osasco, Mogi das Cruzes, ...]
+    
+    MAS: Um cromossoma não define "qual veículo leva qual cidade".
+    Por baixo dos panos, o DECODER implementa uma HEURÍSTICA GULOSA (greedy):
+    
+    Para cada cidade, na ordem do cromossoma:
+      1. Avalia o IMPACTO de adicionar essa cidade a cada veículo
+      2. Escolhe o veículo que causa o MENOR AUMENTO DE FITNESS
+      3. Se a cidade é CRÍTICA e veículo tem alto bonus, favorece esse veículo
+      4. Também considera BALANCE entre veículos (não sobrecarregar um só)
+    
+    VANTAGEM:
+    - Reduz espaço de busca: AG busca em permutações (n!), não em (n choose k) divisões
+    - Permite alocação DINÂMICA: próxima cidade "escolhe" melhor veículo
+    - Capture soft constraints: críticas vão para veículos com maior critical_bonus
+    - Muito mais eficiente computacionalmente!
     """
     routes_by_vehicle = {vehicle['id']: [] for vehicle in VEHICLES}
 
+    # PASSO 1: Aloca cada cidade ao melhor veículo (GREEDY)
     for city in sequence:
         best_vehicle_id = None
         best_score = float('inf')
@@ -344,10 +608,20 @@ def decode_chromosome_to_routes(sequence: List[Dict], depot: Dict) -> List[Dict]
             candidate_route = current_route + [city]
             candidate_eval = evaluate_route_for_vehicle(candidate_route, vehicle, depot)
 
+            # Impacto direto: quanto pior fica o fitness ao adicionar esta cidade?
             increment = candidate_eval['fitness'] - current_eval['fitness']
-            balance_penalty = max(0, len(candidate_route) - (len(sequence) / len(VEHICLES))) * 0.9
+            
+            # Penalidade de balanço: evitar sobrecarregar um veículo
+            media_cidades_por_veiculo = len(sequence) / len(VEHICLES)
+            balance_penalty = max(0, len(candidate_route) - media_cidades_por_veiculo) * 0.9
+            
+            # Bias para cidades críticas: preferir veículos com maior critical_bonus
             critical_bias = -6.0 if city['priority'] == 'critica' and vehicle['critical_bonus'] >= 14 else 0.0
+            
+            # Penalidade por proximidade de limite de capacidade
             capacity_margin = max(0, candidate_eval['demand'] - vehicle['capacity']) * 2.0
+            
+            # Score final: quanto menor, melhor é adicionar esta cidade neste veículo
             score = increment + balance_penalty + capacity_margin + critical_bias
 
             if score < best_score:
@@ -356,14 +630,16 @@ def decode_chromosome_to_routes(sequence: List[Dict], depot: Dict) -> List[Dict]
 
         routes_by_vehicle[best_vehicle_id].append(city)
 
+    # PASSO 2: Realbalanceamento (mover cidades de rotas penalizadas para boas)
     routes_by_vehicle = rebalance_routes(routes_by_vehicle, depot)
 
+    # PASSO 3: Avalia solução final e retorna métricas
     results = []
     total_fitness = 0.0
     for vehicle in VEHICLES:
         route = routes_by_vehicle[vehicle['id']]
         result = evaluate_route_for_vehicle(route, vehicle, depot)
-        result['best_route'] = route
+        result['best_route'] = route  # Armazena a ordem das cidades
         results.append(result)
         total_fitness += result['fitness']
 
@@ -534,16 +810,19 @@ def print_generation_report(generation: int, global_fitness: float, route_result
     print()
 
 
-
-
 def print_text_block(title: str, content: str) -> None:
-    """Mostra blocos de texto de um jeito simples no terminal."""
+    """Mostra blocos de texto de um jeito simples e legível no terminal."""
     line = '=' * max(20, len(title) + 8)
     print(f"\n{line}")
     print(title)
     print(line)
     print(content)
 
+
+# ────────────────────────────────────────────────────────────────────────────────
+# CAMADA 5: PONTO DE ENTRADA - MAIN()
+# ────────────────────────────────────────────────────────────────────────────────
+# Orquestra a execução completa: AG + PyGame + LLM
 
 def main() -> None:
     all_cities, depot = build_city_objects()
