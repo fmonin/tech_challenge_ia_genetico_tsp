@@ -19,6 +19,17 @@ from route_context_loader import build_route_results, summarize_route_results
 # e também evita espalhar a regra de negócio pela UI.
 
 
+def _read_env_int(name: str, fallback: int) -> int:
+    raw = os.getenv(name)
+    if raw is None:
+        return fallback
+    try:
+        value = int(raw)
+        return value if value > 0 else fallback
+    except ValueError:
+        return fallback
+
+
 class RouteLLMService:
     """Orquestra a carga das rotas e as chamadas já existentes da LLM."""
 
@@ -28,9 +39,9 @@ class RouteLLMService:
         generations: int | None = None,
         seed: int = 42,
     ) -> None:
-        # Defaults mais leves para UI web; podem ser sobrescritos por variável de ambiente.
-        default_population = int(os.getenv("STREAMLIT_GA_POPULATION", "30"))
-        default_generations = int(os.getenv("STREAMLIT_GA_GENERATIONS", "45"))
+        # Defaults bem leves para UI web; podem ser sobrescritos por variável de ambiente.
+        default_population = _read_env_int("STREAMLIT_GA_POPULATION", 8)
+        default_generations = _read_env_int("STREAMLIT_GA_GENERATIONS", 10)
 
         self.population_size = population_size or default_population
         self.generations = generations or default_generations
