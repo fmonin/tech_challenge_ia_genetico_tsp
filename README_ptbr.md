@@ -96,6 +96,23 @@ pip install pygame matplotlib numpy
 python tsp.py
 ```
 
+## Interface Streamlit (chat com LLM)
+
+Se quiser usar a interface web para consultar as rotas com linguagem natural:
+
+```bash
+pip install -r requirements_ui.txt
+streamlit run app_streamlit.py
+```
+
+No PowerShell, se preferir chamar o Python da venv diretamente:
+
+```powershell
+& ".venv/Scripts/python.exe" -m streamlit run app_streamlit.py
+```
+
+Observação: já existe o arquivo `.streamlit/config.toml` com `gatherUsageStats = false`, então o Streamlit não deve pedir e-mail no primeiro start.
+
 Se quiser estudar a versão com explicações mais didáticas, você também pode abrir os arquivos comentados.
 
 ## Controles durante a execução

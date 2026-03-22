@@ -120,6 +120,23 @@ No terminal, dentro da pasta do projeto:
 python tsp.py
 ```
 
+## Interface Streamlit (chat com LLM)
+
+Se quiser usar a interface web com perguntas sobre as rotas:
+
+```bash
+pip install -r requirements_ui.txt
+streamlit run app_streamlit.py
+```
+
+No PowerShell, se precisar chamar o Python da venv diretamente:
+
+```powershell
+& ".venv/Scripts/python.exe" -m streamlit run app_streamlit.py
+```
+
+Observação: o projeto já inclui o arquivo `.streamlit/config.toml` com `gatherUsageStats = false`, evitando o prompt inicial de e-mail do Streamlit.
+
 ## O que aparece durante a execução
 
 No terminal:
