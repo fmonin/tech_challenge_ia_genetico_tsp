@@ -982,5 +982,221 @@
         "total_cost": 552.3137856970199
       }
     ]
+  },
+  {
+    "created_at": "2026-03-22T19:09:17.913289",
+    "distance": 879.21,
+    "demand": 246,
+    "time": 1423.28,
+    "cost": 1107.77,
+    "priority": -147.4,
+    "penalty": 0.0,
+    "fitness": 1673.59,
+    "critical_cities": [
+      "São Paulo",
+      "São Bernardo do Campo",
+      "Santos",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Mogi das Cruzes",
+      "São José dos Campos",
+      "Guaratinguetá"
+    ],
+    "route_results": [
+      {
+        "vehicle": {
+          "id": 1,
+          "label": "Veículo 1",
+          "name": "Pequeno",
+          "capacity": 190,
+          "max_distance": 280.0,
+          "max_work_minutes": 420,
+          "max_stops": 22,
+          "service_minutes_regular": 8,
+          "service_minutes_critical": 14,
+          "operational_cost": 1.0,
+          "fixed_cost": 15.0,
+          "critical_bonus": 8.0,
+          "color": [
+            89,
+            163,
+            255
+          ]
+        },
+        "best_route": [
+          {
+            "name": "São Paulo",
+            "priority": "critica",
+            "demand": 18
+          },
+          {
+            "name": "São Bernardo do Campo",
+            "priority": "critica",
+            "demand": 14
+          },
+          {
+            "name": "Santos",
+            "priority": "critica",
+            "demand": 14
+          },
+          {
+            "name": "Osasco",
+            "priority": "regular",
+            "demand": 10
+          }
+        ],
+        "distance_km": 138.56598533008543,
+        "demand": 56,
+        "work_minutes": 234.75464710678057,
+        "fitness": 218.33197066017084,
+        "priority_penalty": -49.8,
+        "penalty": 0.0,
+        "total_cost": 153.56598533008543
+      },
+      {
+        "vehicle": {
+          "id": 2,
+          "label": "Veículo 2",
+          "name": "Médio",
+          "capacity": 320,
+          "max_distance": 520.0,
+          "max_work_minutes": 540,
+          "max_stops": 34,
+          "service_minutes_regular": 8,
+          "service_minutes_critical": 15,
+          "operational_cost": 1.12,
+          "fixed_cost": 25.0,
+          "critical_bonus": 14.0,
+          "color": [
+            70,
+            210,
+            170
+          ]
+        },
+        "best_route": [
+          {
+            "name": "Itapecerica da Serra",
+            "priority": "critica",
+            "demand": 11
+          },
+          {
+            "name": "Cotia",
+            "priority": "critica",
+            "demand": 12
+          },
+          {
+            "name": "Sorocaba",
+            "priority": "critica",
+            "demand": 15
+          },
+          {
+            "name": "Piracicaba",
+            "priority": "critica",
+            "demand": 11
+          },
+          {
+            "name": "Campinas",
+            "priority": "critica",
+            "demand": 17
+          },
+          {
+            "name": "Jundiaí",
+            "priority": "regular",
+            "demand": 12
+          }
+        ],
+        "distance_km": 336.36573313928943,
+        "demand": 78,
+        "work_minutes": 531.4876441857193,
+        "fitness": 603.5953542552936,
+        "priority_penalty": -64.5,
+        "penalty": 0.0,
+        "total_cost": 401.7296211160042
+      },
+      {
+        "vehicle": {
+          "id": 3,
+          "label": "Veículo 3",
+          "name": "Grande",
+          "capacity": 520,
+          "max_distance": 900.0,
+          "max_work_minutes": 660,
+          "max_stops": 50,
+          "service_minutes_regular": 9,
+          "service_minutes_critical": 16,
+          "operational_cost": 1.28,
+          "fixed_cost": 35.0,
+          "critical_bonus": 18.0,
+          "color": [
+            255,
+            165,
+            80
+          ]
+        },
+        "best_route": [
+          {
+            "name": "Santo André",
+            "priority": "critica",
+            "demand": 11
+          },
+          {
+            "name": "Suzano",
+            "priority": "regular",
+            "demand": 11
+          },
+          {
+            "name": "Mogi das Cruzes",
+            "priority": "critica",
+            "demand": 13
+          },
+          {
+            "name": "Arujá",
+            "priority": "regular",
+            "demand": 9
+          },
+          {
+            "name": "Jacareí",
+            "priority": "regular",
+            "demand": 12
+          },
+          {
+            "name": "São José dos Campos",
+            "priority": "critica",
+            "demand": 15
+          },
+          {
+            "name": "Guaratinguetá",
+            "priority": "critica",
+            "demand": 11
+          },
+          {
+            "name": "Atibaia",
+            "priority": "regular",
+            "demand": 10
+          },
+          {
+            "name": "Mairiporã",
+            "priority": "regular",
+            "demand": 8
+          },
+          {
+            "name": "Guarulhos",
+            "priority": "regular",
+            "demand": 12
+          }
+        ],
+        "distance_km": 404.2806979024442,
+        "demand": 112,
+        "work_minutes": 657.0409305365923,
+        "fitness": 851.6599912175728,
+        "priority_penalty": -33.099999999999994,
+        "penalty": 0.0,
+        "total_cost": 552.4792933151286
+      }
+    ]
   }
 ]

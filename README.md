@@ -431,6 +431,12 @@ Ao final da execução, o projeto pode gerar:
 A interface web consulta o histórico salvo e permite perguntas em linguagem natural.
 
 ```bash
+python -m streamlit run app_streamlit.py
+```
+
+Opcionalmente, também funciona com:
+
+```bash
 streamlit run app_streamlit.py
 ```
 
