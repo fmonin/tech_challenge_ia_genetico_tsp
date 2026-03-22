@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 from typing import Dict, List
 from urllib import error, request
 
@@ -10,6 +11,28 @@ from urllib import error, request
 # NÃO COMMITAR CHAVES em código. Use variável de ambiente:
 # export OPENAI_API_KEY="sua_chave"  (Linux/macOS) ou
 # setx OPENAI_API_KEY "sua_chave" (Windows PowerShell)
+
+
+def _load_local_env_file() -> None:
+    env_path = Path(__file__).resolve().parent / ".env"
+    if not env_path.exists():
+        return
+
+    with open(env_path, "r", encoding="utf-8") as f:
+        for raw_line in f:
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip('"').strip("'")
+
+            # Não sobrescreve variáveis já definidas no ambiente do sistema.
+            os.environ.setdefault(key, value)
+
+
+_load_local_env_file()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 
 # Modelo que sera usado.

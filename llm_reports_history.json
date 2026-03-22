@@ -1,0 +1,122 @@
+[
+  {
+    "created_at": "2026-03-22T00:14:55.494470",
+    "distance": 958.84,
+    "demand": 246,
+    "time": 1529.46,
+    "cost": 1188.49,
+    "priority": -125.2,
+    "penalty": 0.0,
+    "fitness": 1836.13,
+    "critical_cities": [
+      "São Bernardo do Campo",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Santos",
+      "São José dos Campos",
+      "Guaratinguetá",
+      "Mogi das Cruzes",
+      "São Paulo"
+    ]
+  },
+  {
+    "created_at": "2026-03-22T00:29:43.920054",
+    "distance": 901.61,
+    "demand": 246,
+    "time": 1452.15,
+    "cost": 1123.73,
+    "priority": -154.8,
+    "penalty": 0.0,
+    "fitness": 1704.54,
+    "critical_cities": [
+      "São Paulo",
+      "São Bernardo do Campo",
+      "Santos",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Mogi das Cruzes",
+      "São José dos Campos",
+      "Guaratinguetá"
+    ]
+  },
+  {
+    "created_at": "2026-03-22T00:37:48.118780",
+    "distance": 948.13,
+    "demand": 246,
+    "time": 1512.18,
+    "cost": 1176.66,
+    "priority": -114.1,
+    "penalty": 0.0,
+    "fitness": 1834.69,
+    "critical_cities": [
+      "São Bernardo do Campo",
+      "Santo André",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "São Paulo",
+      "Guaratinguetá",
+      "São José dos Campos",
+      "Mogi das Cruzes",
+      "Santos"
+    ]
+  },
+  {
+    "created_at": "2026-03-22T00:40:52.409865",
+    "distance": 958.84,
+    "demand": 246,
+    "time": 1529.46,
+    "cost": 1188.49,
+    "priority": -125.2,
+    "penalty": 0.0,
+    "fitness": 1836.13,
+    "critical_cities": [
+      "São Bernardo do Campo",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Santos",
+      "São José dos Campos",
+      "Guaratinguetá",
+      "Mogi das Cruzes",
+      "São Paulo"
+    ]
+  },
+  {
+    "created_at": "2026-03-22T00:45:38.003873",
+    "distance": 879.21,
+    "demand": 246,
+    "time": 1423.28,
+    "cost": 1107.77,
+    "priority": -147.4,
+    "penalty": 0.0,
+    "fitness": 1673.59,
+    "critical_cities": [
+      "São Paulo",
+      "São Bernardo do Campo",
+      "Santos",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Mogi das Cruzes",
+      "São José dos Campos",
+      "Guaratinguetá"
+    ]
+  }
+]
