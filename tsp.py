@@ -723,11 +723,11 @@ def main() -> None:
     if final_results:
         try:
             while True:
-                question = input('\nDigite uma pergunta sobre as rotas (ou E para sair): ').strip()
+                question = input('\nDigite uma pergunta sobre as rotas ou "E" para sair: ').strip()
                 if question.lower() == 'e':
                     break
                 if not question:
-                    print('Digite uma pergunta válida ou E para sair.')
+                    print('Digite uma pergunta válida ou "E" para sair.')
                     continue
                 answer = answer_route_question(final_results, question)
                 print_text_block('RESPOSTA DA LLM', answer)
