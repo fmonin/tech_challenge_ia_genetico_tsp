@@ -23,6 +23,14 @@ from draw_functions import (
     draw_vehicle_legend,
     save_fitness_chart,
 )
+from llm_integration import (
+    answer_route_question,
+    append_history_entry,
+    generate_daily_report,
+    generate_driver_instructions,
+    generate_process_improvements,
+    generate_weekly_report,
+)
 
 # ------------------------------
 # Configurações gerais
@@ -526,6 +534,17 @@ def print_generation_report(generation: int, global_fitness: float, route_result
     print()
 
 
+
+
+def print_text_block(title: str, content: str) -> None:
+    """Mostra blocos de texto de um jeito simples no terminal."""
+    line = '=' * max(20, len(title) + 8)
+    print(f"\n{line}")
+    print(title)
+    print(line)
+    print(content)
+
+
 def main() -> None:
     all_cities, depot = build_city_objects()
     assert len(all_cities) == 20, 'A base ativa precisa ter exatamente 20 cidades.'
@@ -667,7 +686,57 @@ def main() -> None:
             )
         print('Gráfico final salvo em: fitness_evolution.png')
 
+        # Aqui eu salvo um histórico simples para usar no relatório semanal
+        append_history_entry(final_results)
+
+        # Aqui eu gero os textos da parte de LLM
+        try:
+            daily_report = generate_daily_report(final_results)
+            driver_instructions = generate_driver_instructions(final_results)
+            improvement_report = generate_process_improvements(final_results)
+            weekly_report = generate_weekly_report()
+
+            print_text_block('RELATÓRIO DIÁRIO', daily_report)
+            print_text_block('INSTRUÇÕES POR VEÍCULO', driver_instructions)
+            print_text_block('SUGESTÕES DE MELHORIA', improvement_report)
+            print_text_block('RELATÓRIO SEMANAL', weekly_report)
+        except RuntimeError as e:
+            if "insufficient_quota" in str(e) or "quota" in str(e).lower():
+                print("\n⚠️  QUOTA DA API OPENAI ESGOTADA")
+                print("💡 O algoritmo genético funcionou perfeitamente!")
+                print("💡 Para relatórios LLM, adicione créditos em: https://platform.openai.com/usage")
+                print("💡 Ou use um modelo local gratuito como Ollama")
+                print("\n📊 RESULTADOS FINAIS:")
+                for result in final_results:
+                    vehicle = result['vehicle']
+                    print(f"  {vehicle['label']} - {vehicle['name']}: {len(result['best_route'])} cidades, "
+                          f"{result['distance_km']:.1f}km, R${result['total_cost']:.1f}")
+            else:
+                print(f"\n❌ Erro na geração de relatórios: {e}")
+                print("📊 Resultados básicos:")
+                for result in final_results:
+                    vehicle = result['vehicle']
+                    print(f"  {vehicle['label']}: {len(result['best_route'])} cidades")
+
     pygame.quit()
+
+    if final_results:
+        try:
+            while True:
+                question = input('\nDigite uma pergunta sobre as rotas (ou E para sair): ').strip()
+                if question.lower() == 'e':
+                    break
+                if not question:
+                    print('Digite uma pergunta válida ou E para sair.')
+                    continue
+                answer = answer_route_question(final_results, question)
+                print_text_block('RESPOSTA DA LLM', answer)
+        except (EOFError, RuntimeError) as e:
+            if isinstance(e, RuntimeError) and ("insufficient_quota" in str(e) or "quota" in str(e).lower()):
+                print("\n⚠️  Sistema de perguntas indisponível - quota da API esgotada")
+            else:
+                print(f"\n❌ Erro no sistema de perguntas: {e}")
+
     sys.exit()
 
 
