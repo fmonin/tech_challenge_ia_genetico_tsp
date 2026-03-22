@@ -166,5 +166,53 @@
       "São José dos Campos",
       "Guaratinguetá"
     ]
+  },
+  {
+    "created_at": "2026-03-22T09:06:49.119687",
+    "distance": 879.21,
+    "demand": 246,
+    "time": 1423.28,
+    "cost": 1107.77,
+    "priority": -147.4,
+    "penalty": 0.0,
+    "fitness": 1673.59,
+    "critical_cities": [
+      "São Paulo",
+      "São Bernardo do Campo",
+      "Santos",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Mogi das Cruzes",
+      "São José dos Campos",
+      "Guaratinguetá"
+    ]
+  },
+  {
+    "created_at": "2026-03-22T09:39:12.620860",
+    "distance": 879.21,
+    "demand": 246,
+    "time": 1423.28,
+    "cost": 1107.77,
+    "priority": -147.4,
+    "penalty": 0.0,
+    "fitness": 1673.59,
+    "critical_cities": [
+      "São Paulo",
+      "São Bernardo do Campo",
+      "Santos",
+      "Itapecerica da Serra",
+      "Cotia",
+      "Sorocaba",
+      "Piracicaba",
+      "Campinas",
+      "Santo André",
+      "Mogi das Cruzes",
+      "São José dos Campos",
+      "Guaratinguetá"
+    ]
   }
 ]
