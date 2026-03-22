@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Dict, List
 
 from llm_integration import (
@@ -27,8 +28,12 @@ class RouteLLMService:
         generations: int | None = None,
         seed: int = 42,
     ) -> None:
-        self.population_size = population_size
-        self.generations = generations
+        # Defaults mais leves para UI web; podem ser sobrescritos por variável de ambiente.
+        default_population = int(os.getenv("STREAMLIT_GA_POPULATION", "30"))
+        default_generations = int(os.getenv("STREAMLIT_GA_GENERATIONS", "45"))
+
+        self.population_size = population_size or default_population
+        self.generations = generations or default_generations
         self.seed = seed
         self._route_results: List[Dict] | None = None
 

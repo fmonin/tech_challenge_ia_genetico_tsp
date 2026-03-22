@@ -28,6 +28,21 @@ def init_session_state() -> None:
         st.session_state.history = []
     if "summary" not in st.session_state:
         st.session_state.summary = None
+    if "routes_ready" not in st.session_state:
+        st.session_state.routes_ready = False
+    if "warmup_error" not in st.session_state:
+        st.session_state.warmup_error = None
+
+
+def warmup_routes(service: RouteLLMService) -> None:
+    try:
+        with st.spinner("Preparando contexto das rotas..."):
+            service.load_route_results()
+        st.session_state.routes_ready = True
+        st.session_state.warmup_error = None
+    except Exception as exc:  # noqa: BLE001
+        st.session_state.routes_ready = False
+        st.session_state.warmup_error = str(exc)
 
 
 def render_summary(service: RouteLLMService) -> None:
@@ -67,6 +82,20 @@ def main() -> None:
 
     st.title("Consulta de Rotas com IA")
     st.caption("Selecione uma pergunta sugerida ou escreva uma pergunta personalizada.")
+    st.caption(
+        "Na primeira execução, o sistema precisa montar as rotas. "
+        "Use o botão abaixo para preparar o contexto antes de perguntar."
+    )
+
+    if st.button("Preparar contexto de rotas", use_container_width=True):
+        warmup_routes(service)
+
+    if st.session_state.routes_ready:
+        st.success("Contexto carregado. As próximas perguntas respondem mais rápido.")
+    elif st.session_state.warmup_error:
+        st.error(f"Falha ao preparar contexto: {st.session_state.warmup_error}")
+    else:
+        st.info("Contexto ainda não carregado nesta sessão.")
 
     try:
         suggestions = list_example_questions()
@@ -90,6 +119,11 @@ def main() -> None:
 
     if submitted:
         prompt = custom_question.strip() or selected_question
+        if not st.session_state.routes_ready:
+            warmup_routes(service)
+        if not st.session_state.routes_ready:
+            st.warning("Não foi possível preparar as rotas. Corrija o erro e tente novamente.")
+            return
         handle_user_prompt(service, prompt)
         st.rerun()
 
