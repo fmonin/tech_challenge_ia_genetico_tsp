@@ -3,13 +3,13 @@
 ║                    SISTEMA DE OTIMIZAÇÃO DE ROTAS (TSP/VRP)                   ║
 ║               Algoritmo Genético com Integração LLM - Relatórios              ║
 ║                                                                               ║
-║  PROPÓSITO: Resolver o Vehicle Routing Problem (VRP) para 20 cidades de      ║
-║  São Paulo usando evolução genética, otimizando múltiplas métricas:          ║
+║  PROPÓSITO: Resolver o Vehicle Routing Problem (VRP) para 20 cidades de       ║
+║  São Paulo usando evolução genética, otimizando múltiplas métricas:           ║
 ║  - Minimizar distância total percorrida                                       ║
 ║  - Minimizar custo operacional                                                ║
 ║  - Respeitar capacidade dos veículos                                          ║
-║  - Respeitar janelas de tempo e limites de distância                         ║
-║  - Priorizar entrega de cidades críticas (high-priority)                     ║
+║  - Respeitar janelas de tempo e limites de distância                          ║
+║  - Priorizar entrega de cidades críticas (high-priority)                      ║
 ║                                                                               ║
 ║  WORKFLOW:                                                                    ║
 ║  1. Inicializa 20 cidades reais (lat/lon) de São Paulo                        ║
@@ -27,11 +27,11 @@
 ║  FEATURE ÚNICO: Decodificação dinâmica de cromossoma                          ║
 ║  - AG trabalha com uma PERMUTAÇÃO GLOBAL (ordem das 20 cidades)               ║
 ║  - Decoder decide em TEMPO REAL qual veículo leva cada cidade                 ║
-║  - Isso permite distribuição inteligente sem pré-divisão de clientes         ║
+║  - Isso permite distribuição inteligente sem pré-divisão de clientes          ║
 ║                                                                               ║
-║  AUTHOR: Sistema IA desenvolvido para análise de logística                    ║
+║  AUTHOR: Fernando Monin                                                       ║
 ║  DATA: Março 2026                                                             ║
-║  ACADÊMICO: FIAP - Pós-Graduação em Inteligência Artificial                  ║
+║  ACADÊMICO: FIAP - Pós-Graduação em Inteligência Artificial                   ║
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 """
 

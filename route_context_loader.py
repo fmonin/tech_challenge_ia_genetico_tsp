@@ -1,4 +1,5 @@
 """
+AUTHOR: Fernando Monin
 MÓDULO: route_context_loader.py
 ================================
 Conecta o algoritmo genético (tsp.py) com a interface web (Streamlit).

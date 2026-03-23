@@ -1,4 +1,5 @@
 """
+AUTHOR: Fernando Monin
 MÓDULO: genetic_algorithm.py
 =============================
 Este módulo implementa o núcleo do Algoritmo Genético (AG) aplicado ao problema

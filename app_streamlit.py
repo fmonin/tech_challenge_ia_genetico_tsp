@@ -6,16 +6,16 @@ Interface web interativa para análise de rotas VRP com IA.
 ARQUITETURA:
 ============
 ┌─────────────────────────────────────────────────┐
-│  Streamlit (este arquivo)                      │
-│  - UI/UX renderização                          │
-│  - State management (session_state)            │
+│  Streamlit (este arquivo)                       │
+│  - UI/UX renderização                           │
+│  - State management (session_state)             │
 ├─────────────────────────────────────────────────┤
-│  RouteLLMService (llm_ui_service.py)           │
-│  - Orquestração GA + LLM                       │
-│  - Cache de resultados                         │
+│  RouteLLMService (llm_ui_service.py)            │
+│  - Orquestração GA + LLM                        │
+│  - Cache de resultados                          │
 ├─────────────────────────────────────────────────┤
-│  Algoritmo Genético (tsp.py)                   │
-│  Integração LLM (llm_integration.py)           │
+│  Algoritmo Genético (tsp.py)                    │
+│  Integração LLM (llm_integration.py)            │
 └─────────────────────────────────────────────────┘
 
 FLUXO DE INTERAÇÃO:

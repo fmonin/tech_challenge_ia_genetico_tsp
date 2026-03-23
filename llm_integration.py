@@ -1,4 +1,5 @@
 """
+AUTHOR: Fernando Monin
 MÓDULO: llm_integration.py
 ===========================
 Integração com GPT da OpenAI para análise inteligente de rotas VRP.
@@ -78,22 +79,7 @@ from urllib import error, request
 # ==================================================================
 
 def _load_local_env_file() -> None:
-    """
-    Carrega variáveis de ambiente de arquivo .env local.
     
-    Prática comum em desenvolvimento: manter .env no .gitignore
-    para não expor secrets no repositório público.
-    
-    Formato do arquivo .env:
-    ===========================
-    OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxx
-    OPENAI_MODEL=gpt-4o-mini
-    
-    Segurança:
-    - Não usa eval() (perigoso!)
-    - Ignora comentários (#) e linhas vazias
-    - Não sobrescreve variáveis já definidas (permite override via sistema)
-    """
     env_path = Path(__file__).resolve().parent / ".env"
     if not env_path.exists():
         return
