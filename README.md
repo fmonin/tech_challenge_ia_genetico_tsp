@@ -1,3 +1,26 @@
+## Entrega Tech Challenge Fase 2
+
+Autor: Fernando Monin  
+GIT: https://github.com/fmonin/tech_challenge_ia_genetico_tsp.git
+
+Video Demonstracao: https://youtu.be/aT6vNuB36Ms
+
+### Entregaveis
+
+Pasta DOC: Documento PDF contendo:
+
+- Implementacao do algoritmo genetico para roteamento a partir do codigo base fornecido;
+- Estrategias para lidar com restricoes adicionais (prioridades, capacidade de carga, autonomia dos veiculos, multiplos veiculos);
+- Integracao com LLMs para geracao de instrucoes e relatorios.
+
+### Instrucao para executar app_streamlit.py para utilizar a LLM pelo navegador
+
+```cmd
+python -m streamlit run app_streamlit.py
+```
+
+---
+
 # Sistema de Otimização de Rotas com Algoritmo Genético e LLM
 
 ## Visão geral
